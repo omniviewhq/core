@@ -625,7 +625,7 @@ test("creates an observable session before loading its document", async () => {
 **Files:** Modify registry/resolver/session modules; create
 `tests/plugins.test.ts` and `tests/capabilities.test.ts`.
 
-- [ ] **Red:** Use a delayed first probe to prove order is preserved:
+- [x] **Red:** Use a delayed first probe to prove order is preserved:
 
 ```ts
 test("waits for the first probe before considering later plugins", async () => {
@@ -651,22 +651,22 @@ test("waits for the first probe before considering later plugins", async () => {
 Import `test/expect` from bun:test, public APIs from the root, and
 `deferred/fixturePlugin` from the declared support fixture in these files.
 
-- [ ] Implement sequential awaited probes, explicit plugin selection, structured
+- [x] Implement sequential awaited probes, explicit plugin selection, structured
   error wrapping, and the cached load promise. Preserve supports/open method
   context by invoking methods on their definition object.
-- [ ] Add one failing test then implementation for each of: explicit plugin
+- [x] Add one failing test then implementation for each of: explicit plugin
   bypasses probes; missing explicit plugin; all false; sync throw and rejected
   promise from supports/open; unsupported apiVersion; noncallable callbacks.
-- [ ] A caller-provided error object must be the exact `.cause` of PLUGIN_FAILED;
+- [x] A caller-provided error object must be the exact `.cause` of PLUGIN_FAILED;
   assert plugin/source/session context. Do not fallback after a failed probe.
   Add runtime-invalid JavaScript-style fixtures using an explicit unknown cast
   in tests for nonboolean probes, malformed results, and invalid apiVersion;
   do not weaken production types to make invalid fixtures compile.
-- [ ] Open a plugin with a provided textContent capability, retrieve it through
+- [x] Open a plugin with a provided textContent capability, retrieve it through
   session.getCapability and assert `getText()` yields a known string. Test
   missing keys, duplicate capability IDs, invalid values, and lookup before
   readiness/after disposal. Reject malformed results instead of publishing ready.
-- [ ] Run focused plugin/capability tests and type checks; commit
+- [x] Run focused plugin/capability tests and type checks; commit
   `feat(plugins): resolve and validate async plugins` with detailed reasoning.
 
 ## Task 5: Stable subscriptions and reentrant observers
@@ -674,7 +674,7 @@ Import `test/expect` from bun:test, public APIs from the root, and
 **Files:** Create `src/sessions/state.ts` and `src/lifecycle/reporting.ts`;
 integrate them in session/core; create `tests/session-state.test.ts`.
 
-- [ ] **Red:** Verify stable snapshots and the exact normal transition sequence:
+- [x] **Red:** Verify stable snapshots and the exact normal transition sequence:
 
 ```ts
 test("publishes stable lifecycle snapshots", async () => {
@@ -693,21 +693,21 @@ test("publishes stable lifecycle snapshots", async () => {
 });
 ```
 
-- [ ] Implement immutable snapshots with a monotonically advancing internal
+- [x] Implement immutable snapshots with a monotonically advancing internal
   notification revision. Store each subscription registration separately.
   Before each callback, check that it remains registered and the publication
   revision is still current. Catch callback errors and report without throwing
   through document operations.
-- [ ] Add tests for unsubscribe twice; same listener registered twice; one
+- [x] Add tests for unsubscribe twice; same listener registered twice; one
   listener removing another before its turn; callback-triggered dispose; no
   callbacks after disposed; callback-triggered load during loading.
-- [ ] Capture the first load promise and assert repeated load calls return that
+- [x] Capture the first load promise and assert repeated load calls return that
   exact promise and invoke plugin.open once, including reentrant notification.
-- [ ] Observer-error tests use onError to capture OBSERVER_FAILED and prove a
+- [x] Observer-error tests use onError to capture OBSERVER_FAILED and prove a
   later listener still runs and load succeeds. Test default console reporting
   and a throwing onError handler by temporarily spying on console.error; always
   restore it with finally. This mocks the public diagnostic output only.
-- [ ] Commit `feat(sessions): expose stable lifecycle subscriptions` after
+- [x] Commit `feat(sessions): expose stable lifecycle subscriptions` after
   focused tests and strict checking.
 
 ## Task 6: Scoped cleanup and failure precedence
@@ -715,7 +715,7 @@ test("publishes stable lifecycle snapshots", async () => {
 **Files:** Create/complete `src/lifecycle/resources.ts`; integrate the plugin
 context and disposal path; create `tests/session-resources.test.ts`.
 
-- [ ] **Red:** Register resources through the public plugin context:
+- [x] **Red:** Register resources through the public plugin context:
 
 ```ts
 test("cleans every resource in reverse order despite a failure", async () => {
@@ -736,21 +736,21 @@ test("cleans every resource in reverse order despite a failure", async () => {
 });
 ```
 
-- [ ] Implement one resource-scope entry per registration and cache its disposal
+- [x] Implement one resource-scope entry per registration and cache its disposal
   promise before invoking callbacks. Clear owned entries and mark closed before
   asynchronous cleanup starts. Invoke callbacks sequentially in LIFO order,
   collect failures, then reject one contextual CLEANUP_FAILED with aggregate
   causes. Never stop at the first failing cleanup.
-- [ ] Exercise unregister twice, duplicate function registrations, repeated
+- [x] Exercise unregister twice, duplicate function registrations, repeated
   dispose promise identity, created-session disposal, asynchronous cleanup,
   late registration, and preserved result-dispose method context.
-- [ ] A plugin that registers a resource then fails opening must clean it. Assert
+- [x] A plugin that registers a resource then fails opening must clean it. Assert
   load rejects the original PLUGIN_FAILED while one secondary CLEANUP_FAILED
   reaches onError. Add a separate late-result cleanup failure assertion.
-- [ ] Assert post-disposal create/load/capability operations cannot restore usable
+- [x] Assert post-disposal create/load/capability operations cannot restore usable
   state and subscribers are released. Verify no hidden timer or worker is
   required by core cleanup itself.
-- [ ] Commit `feat(sessions): own and dispose plugin resources` with the disposal
+- [x] Commit `feat(sessions): own and dispose plugin resources` with the disposal
   order, error precedence, and late-result rules in its detailed body.
 
 ## Task 7: Source and plugin cancellation without stale results
@@ -758,7 +758,7 @@ test("cleans every resource in reverse order despite a failure", async () => {
 **Files:** Complete `src/lifecycle/cancellation.ts`; integrate with resolver and
 session; create `tests/session-cancellation.test.ts`.
 
-- [ ] **Red:** Prove disposal does not wait for an uncooperative plugin:
+- [x] **Red:** Prove disposal does not wait for an uncooperative plugin:
 
 ```ts
 test("disposes a late result without resurrecting the session", async () => {
@@ -770,10 +770,10 @@ test("disposes a late result without resurrecting the session", async () => {
   })] });
   const session = core.createSession(createSource(new Blob(["a"])));
   const loading = session.load();
-  const rejected = expect(loading).rejects.toMatchObject({ code: "CANCELLED" });
+  const rejected = loading.catch((error: unknown) => error);
   await started.promise;
   await session.dispose();
-  await rejected;
+  expect(await rejected).toMatchObject({ code: "CANCELLED" });
   expect(session.getSnapshot().status).toBe("disposed");
   result.resolve({ dispose() { cleaned.resolve(undefined); } });
   await cleaned.promise;
@@ -782,21 +782,21 @@ test("disposes a late result without resurrecting the session", async () => {
 });
 ```
 
-Import PluginDocument as a type from the SDK. Attach rejection assertions before
+Import PluginDocument as a type from the SDK. Attach rejection observers before
 triggering abort to avoid an unhandled rejection in the test itself.
 
-- [ ] Implement the abort race: install the abort listener, schedule/capture the
+- [x] Implement the abort race: install the abort listener, schedule/capture the
   underlying operation, reject promptly on abort, and keep fulfillment/rejection
   handlers attached even after the race settles. Remove the signal listener on
   each outcome. Late open results enter the closed resource scope for disposal.
-- [ ] Test pre-aborted load never probes; abort during an async probe never
+- [x] Test pre-aborted load never probes; abort during an async probe never
   calls open; abort during open publishes cancelled; dispose during open retains
   disposed; late rejection produces no unhandled promise rejection.
-- [ ] Test a caller signal aborted after ready does not close the session, while
+- [x] Test a caller signal aborted after ready does not close the session, while
   session disposal aborts the plugin's retained context signal.
-- [ ] Test terminal load retry behavior, cancellation reason preservation, and
+- [x] Test terminal load retry behavior, cancellation reason preservation, and
   queued work cancelled before its start callback runs.
-- [ ] Commit `feat(sessions): cancel loads and reject stale results` after all
+- [x] Commit `feat(sessions): cancel loads and reject stale results` after all
   controlled-race tests and strict checks pass.
 
 ## Task 8: Multiple sessions and core-wide disposal
@@ -804,7 +804,7 @@ triggering abort to avoid an unhandled rejection in the test itself.
 **Files:** Complete `src/core/create-core.ts`; create
 `tests/core-lifecycle.test.ts`.
 
-- [ ] **Red:** Give each open its own real plugin closure:
+- [x] **Red:** Give each open its own real plugin closure:
 
 ```ts
 test("isolates two documents opened by the same plugin", async () => {
@@ -832,18 +832,18 @@ Import defineCapability/provideCapability from the SDK; all other APIs come from
 the root. This test checks behavior across public boundaries rather than internal
 store/map implementation.
 
-- [ ] Implement cached frozen membership snapshots and per-core monotonic session
+- [x] Implement cached frozen membership snapshots and per-core monotonic session
   identity. Mark core closed before starting disposal; all tracked sessions are
   attempted even when one cleanup fails. Aggregate failures after all settle.
-- [ ] Verify core.dispose rejects cleanup failures while every session ends
+- [x] Verify core.dispose rejects cleanup failures while every session ends
   disposed; repeat calls share the disposal promise; no session can be created
   during a cleanup callback; open after closure rejects CORE_CLOSED.
-- [ ] Verify failed core.open removes its temporary session and retains the
+- [x] Verify failed core.open removes its temporary session and retains the
   primary failure, while explicit failed sessions remain inspectable until
   disposed. Preserve once-only cleanup diagnostics.
-- [ ] Verify getSessions reference stability between membership changes and
+- [x] Verify getSessions reference stability between membership changes and
   independence between two separate core instances.
-- [ ] Commit `feat(core): manage isolated document lifetimes` after focused and
+- [x] Commit `feat(core): manage isolated document lifetimes` after focused and
   full runtime tests pass.
 
 ## Task 9: Package the root and SDK as real public entry points
@@ -957,3 +957,17 @@ Keep GLOSSARY terms consistent.
   previously unimported files; useful public-behavior assertions accompany it.
 - The implementation and documentation explicitly distinguish completed
   lifecycle/SDK work from future editing, UI, formats, and the public test kit.
+
+## Execution notes
+
+Tasks 4-8 share the session ownership and terminal-state boundary. Their runtime
+changes are committed together after the complete transition/race suite passes,
+so intermediate commits do not leave cancellation and cleanup inconsistent.
+The Task 5 state/reporting modules and initial observer tests were introduced
+with the managed shell; their remaining reentrant scenarios are covered by the
+runtime milestone.
+
+Controlled-race tests attach a plain promise rejection observer before aborting.
+Bun 1.4.3 expectation chains can drain pending jobs when invoked, so race triggers
+precede the final matcher. A temporary unimported source function made the full
+coverage command exit 1; removing it restored 100% lines/functions.

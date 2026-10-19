@@ -29,10 +29,16 @@ export interface SessionOptions {
 
 /** One document's managed lifetime. */
 export interface DocumentSession {
+  /** Identity unique within its owning core instance. */
   readonly id: string;
+  /** Return the same frozen snapshot until the next lifecycle transition. */
   getSnapshot(): SessionSnapshot;
+  /** Observe synchronous transitions; the returned unsubscribe is idempotent. */
   subscribe(listener: () => void): () => void;
+  /** Load once; failures are terminal and subsequent calls share the promise. */
   load(options?: LoadOptions): Promise<void>;
+  /** Retrieve a plugin API while ready; returned APIs share this session's lifetime. */
   getCapability<T extends object>(key: CapabilityKey<T>): T | undefined;
+  /** Become disposed immediately, abort work, and await all known cleanup. */
   dispose(): Promise<void>;
 }
