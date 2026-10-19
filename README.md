@@ -112,6 +112,8 @@ See [release setup](docs/releasing.md) before running the manual Release workflo
 - [GitHub](https://github.com/omniviewhq/core)
 - [JSR](https://jsr.io/@omniview/core)
 - [Architecture](docs/superpowers/specs/2026-10-19-core-foundation-design.md)
+- [Core runtime and SDK architecture](docs/superpowers/specs/2026-10-19-core-runtime-proposal.md)
+- [Phase 1 implementation plan](docs/superpowers/plans/2026-10-19-core-runtime-phase-1.md)
 - [Installed AI skills](docs/ai-skills.md)
 
 MIT licensed.
