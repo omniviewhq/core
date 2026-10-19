@@ -1,0 +1,52 @@
+{
+  "name": "@omniview/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic, plugin-driven file viewing and editing core.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/omniviewhq/core#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omniviewhq/core.git"
+  },
+  "bugs": {
+    "url": "https://github.com/omniviewhq/core/issues"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "bun@1.4.3",
+  "scripts": {
+    "typecheck": "bun --check && tsc -p tsconfig.build.json --noEmit",
+    "lint": "biome check .",
+    "fix": "biome check --write .",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "build": "bun build ./src/index.ts --target=browser --format=esm --sourcemap=linked --outdir=dist && tsc -p tsconfig.build.json",
+    "check": "bun run lint && bun run typecheck && bun run test:coverage && bun run build",
+    "pack:check": "bun run check && bun pm pack --dry-run",
+    "jsr:check": "jsr publish --dry-run --allow-dirty",
+    "prepublishOnly": "bun run check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/bun": "1.4.3",
+    "jsr": "0.14.3",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "method": "local-copy",
+  "skills": [
+    {
+      "name": "brainstorming",
+      "source": "grand/templatio/.claude/skills/brainstorming",
+      "skillSha256": "bba47904a7f6bbee3bf8a107ebbe84e65d392be683bbb898ded736b29e415f90"
+    },
+    {
+      "name": "bun-native",
+      "source": "omnifaced/omnicrew/.claude/skills/bun-native",
+      "skillSha256": "b2d40e41643f21f2b79e4f76496687f7002f3a7177f346caecba89c5fe17a304"
+    },
+    {
+      "name": "cavecrew",
+      "source": "omnifaced/meta/.agents/skills/cavecrew",
+      "skillSha256": "f1ce6b651c9431cc248061471bf247787c2491c0b02b912691fc8f690f01be04"
+    },
+    {
+      "name": "caveman",
+      "source": "omnifaced/omnicrew/.claude/skills/caveman",
+      "skillSha256": "34255a0215a7701eb83d508d03bc9560dc7bffbeb95a145ad2921ad2598a03bf"
+    },
+    {
+      "name": "caveman-commit",
+      "source": "omnifaced/omnicrew/.claude/skills/caveman-commit",
+      "skillSha256": "c788a282fc75b981b421dfdad5d84ea7f83f946c126daa39cfc7d3f97845e193"
+    },
+    {
+      "name": "caveman-compress",
+      "source": "omnifaced/omnicrew/.claude/skills/caveman-compress",
+      "skillSha256": "377b0b8682d9db1a832c20ee6732ed0f19f55e4f7048955296128244c869c916"
+    },
+    {
+      "name": "caveman-review",
+      "source": "omnifaced/meta/.agents/skills/caveman-review",
+      "skillSha256": "f5fcb5ec7cb461bfd95a6f5eb6dbe624967057dce7992e71213bcd3462ace742"
+    },
+    {
+      "name": "domain-modeling",
+      "source": "omnifaced/omnicrew/.claude/skills/domain-modeling",
+      "skillSha256": "7b925d7b1e341a2eeae33ad68a8a8c0ab889a38ddd22a7598e4c240e5a7556a3"
+    },
+    {
+      "name": "find-skills",
+      "source": "grand/templatio/.claude/skills/find-skills",
+      "skillSha256": "1e85f6f9686e145aca4a124e3b704b9bbea9aa87e08515c1e352eee70f6e6e7a"
+    },
+    {
+      "name": "handoff",
+      "source": "omnifaced/omnicrew/.claude/skills/handoff",
+      "skillSha256": "4cbb043950dad2ffd3662ff1a5a0b51ae676004b5cae10e3787e8ee7a4ee69d3"
+    },
+    {
+      "name": "systematic-debugging",
+      "source": "grand/templatio/.claude/skills/systematic-debugging",
+      "skillSha256": "4999cb851360485eca5074e727bbdd62ef20549c5d5b01216fcbf5831badb473"
+    },
+    {
+      "name": "tdd",
+      "source": "omnifaced/omnicrew/.claude/skills/tdd",
+      "skillSha256": "5505d25bbaa8fc14a79e4d20163936958992a2995b7f1dd1d6197edc9ed722e0"
+    },
+    {
+      "name": "typescript-advanced-types",
+      "source": "omnifaced/omnicrew/.claude/skills/typescript-advanced-types",
+      "skillSha256": "c32101c65134d94ef1a3305ef486020b57be6408f97ed952c9c560e3fe04188d"
+    },
+    {
+      "name": "verification-before-completion",
+      "source": "grand/templatio/.claude/skills/verification-before-completion",
+      "skillSha256": "ea52d15aabaf72bc6b558efe2c126f161b53961090ddcd712000273bfe8c7b6c"
+    },
+    {
+      "name": "writing-plans",
+      "source": "grand/templatio/.claude/skills/writing-plans",
+      "skillSha256": "4fd4627d2c02367879c0307d7249270bed633317ff9be82e926a6d57bf5d331b"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+[test]
+root = "./tests"
+preload = ["./tests/coverage.preload.ts"]
+coverageThreshold = { lines = 1, functions = 1 }
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["tests/**", "dist/**"]
