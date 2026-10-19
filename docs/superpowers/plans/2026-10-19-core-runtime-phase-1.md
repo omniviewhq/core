@@ -581,7 +581,7 @@ Replace root exports; remove legacy `src/omniview.ts` and `src/types.ts` only
 after moving/replacing their verified behaviors. Rewrite
 `tests/omniview.test.ts` and `tests/contracts.types.ts` for the managed contract.
 
-- [ ] **Red:** Establish the public lifecycle with a complete integration test:
+- [x] **Red:** Establish the public lifecycle with a complete integration test:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -602,20 +602,20 @@ test("creates an observable session before loading its document", async () => {
 });
 ```
 
-- [ ] Implement the minimal passing core/session path against the target
+- [x] Implement the minimal passing core/session path against the target
   interfaces: tracked creation, asynchronous load, selected plugin result,
   frozen metadata/snapshot, and terminal disposal. Introduce the state and
   cleanup modules only as their behavior is exercised in later tasks.
-- [ ] Move each existing behavior test into the new public API: registration
+- [x] Move each existing behavior test into the new public API: registration
   order, skipped unsupported plugins, original callback context, registration
   list snapshot, source bytes/metadata, empty IDs, duplicate IDs, and failures.
   Update assertions for structured errors and managed handles.
-- [ ] Remove the old fake-save/mode tests because this slice does not implement
+- [x] Remove the old fake-save/mode tests because this slice does not implement
   editing. Replace their meaningful coverage with plugin-result cleanup and
   typed capability integration in Tasks 4 and 6. Do not imply editing is ready.
-- [ ] Update type tests for status narrowing and capability lookup. Remove old
+- [x] Update type tests for status narrowing and capability lookup. Remove old
   ViewSession/EditSession imports instead of retaining incompatible aliases.
-- [ ] Run the migrated tests and strict types; commit
+- [x] Run the migrated tests and strict types; commit
   `feat(core)!: introduce managed document sessions`. In the detailed body,
   include `BREAKING CHANGE:` explaining readable sources, managed handles,
   asynchronous disposal, and deferred replacement of legacy editing semantics.
