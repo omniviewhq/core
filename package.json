@@ -20,6 +20,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./sdk": {
+      "types": "./dist/sdk/index.d.ts",
+      "import": "./dist/sdk/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -37,7 +41,8 @@
     "fix": "biome check --write .",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "build": "bun build ./src/index.ts --target=browser --format=esm --sourcemap=linked --outdir=dist && tsc -p tsconfig.build.json",
+    "test:package": "bun scripts/verify-package.ts",
+    "build": "bun scripts/build.ts && tsc -p tsconfig.build.json",
     "check": "bun run lint && bun run typecheck && bun run test:coverage && bun run build",
     "pack:check": "bun run check && bun pm pack --dry-run",
     "jsr:check": "jsr publish --dry-run --allow-dirty",

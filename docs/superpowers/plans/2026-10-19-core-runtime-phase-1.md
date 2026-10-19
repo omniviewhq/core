@@ -853,13 +853,13 @@ store/map implementation.
 `tsconfig.json`, README, and CI. Keep existing `bunfig.toml` production coverage
 rules; do not exclude new source modules.
 
-- [ ] Add a packed-consumer test that imports root and `/sdk` by package name,
+- [x] Add a packed-consumer test that imports root and `/sdk` by package name,
   defines a plugin, opens a Blob source, obtains a typed capability, and disposes
   core. It must initially fail because `/sdk` is not exported or built.
-- [ ] Configure npm `exports["./sdk"]` with `./dist/sdk/index.d.ts` and
+- [x] Configure npm `exports["./sdk"]` with `./dist/sdk/index.d.ts` and
   `./dist/sdk/index.js`. Configure JSR object exports `.` to `./src/index.ts`
   and `./sdk` to `./src/sdk/index.ts`. Keep names/versions synchronized.
-- [ ] Build both entry points together with splitting so shared runtime classes
+- [x] Build both entry points together with splitting so shared runtime classes
   and token implementations are not duplicated between public imports:
 
 ```ts
@@ -885,26 +885,26 @@ const result = await Bun.build({
 if (!result.success) throw new AggregateError(result.logs, "Build failed");
 ```
 
-- [ ] Set the build script to `bun scripts/build.ts && tsc -p
+- [x] Set the build script to `bun scripts/build.ts && tsc -p
   tsconfig.build.json`; include `scripts/**/*.ts` in development type checking.
   Public-source type checking still uses `types: []`. Validate all emitted JS
   chunks and declarations are included by the existing `files: ["dist", ...]`.
-- [ ] In verify-package, use Bun to pack/read/extract the actual archive into
+- [x] In verify-package, use Bun to pack/read/extract the actual archive into
   an ignored temporary consumer. Verify expected manifest/files, compile its
   TypeScript under strict NodeNext with skipLibCheck false, and run compiled
   JS using Node. Use Bun-native process/archive APIs for the developer script;
   Node is the independent consumer runtime, not a new package dependency.
-- [ ] The consumer verifies root.OmniviewError is the same constructor as
+- [x] The consumer verifies root.OmniviewError is the same constructor as
   sdk.OmniviewError and errors cross the public boundary correctly. It must not
   resolve dependencies from a source-path alias or reuse the old .cache smoke
   fixture as evidence. For an additional consumer check use lib: ["ES2022"] and
   types: ["node"] with skipLibCheck false. Standard Node Web API types come from
   the existing @types/bun dependency's transitive @types/node; public sources
   must not acquire a dependency on either ambient type package.
-- [ ] Add `test:package` to CI after build. Include generated chunks in npm
+- [x] Add `test:package` to CI after build. Include generated chunks in npm
   whitelist checks; exclude src/tests/skills/secrets from npm contents.
-- [ ] Run npm pack dry-run and JSR dry-run with both exports. Do not publish.
-- [ ] Commit `build: expose portable core and sdk entry points` with packaging
+- [x] Run npm pack dry-run and JSR dry-run with both exports. Do not publish.
+- [x] Commit `build: expose portable core and sdk entry points` with packaging
   compatibility and verification details.
 
 ## Task 10: Documentation, migration, and final acceptance
