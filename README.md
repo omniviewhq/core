@@ -147,6 +147,7 @@ Repository preparation does not authorize publication or git push.
 - [Architecture](docs/superpowers/specs/2026-10-19-core-foundation-design.md)
 - [Runtime architecture and roadmap](docs/superpowers/specs/2026-10-19-core-runtime-proposal.md)
 - [Phase 1 implementation plan](docs/superpowers/plans/2026-10-19-core-runtime-phase-1.md)
+- [Proposed editing protocol](docs/superpowers/specs/2026-10-20-editing-protocol-design.md)
 - [Installed AI skills](docs/ai-skills.md)
 
 MIT licensed.
