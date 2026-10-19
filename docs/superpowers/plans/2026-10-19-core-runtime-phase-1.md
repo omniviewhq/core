@@ -535,7 +535,7 @@ not exist, then scaffold its exported signature and observe the behavior fail.
 `src/sdk/index.ts`, `tests/support/fixtures.ts`, `tests/sdk.types.ts`, and
 `tests/sdk.test.ts`.
 
-- [ ] **Red:** Write compile-time examples through the SDK source entry point:
+- [x] **Red:** Write compile-time examples through the SDK source entry point:
 
 ```ts
 import { defineCapability, definePlugin, provideCapability }
@@ -560,16 +560,16 @@ export const plugin = definePlugin({
 });
 ```
 
-- [ ] Run `bun run typecheck`; expect missing SDK exports before implementation.
-- [ ] Implement the exact contracts/helpers above, complete cross-file imports,
+- [x] Run `bun run typecheck`; expect missing SDK exports before implementation.
+- [x] Implement the exact contracts/helpers above, complete cross-file imports,
   and explicit SDK re-exports. Export the error class/type, source contracts,
   plugin context/definition/result, capabilities, and helper functions.
-- [ ] Runtime test invalid key names such as `example:` and `:content` yield
+- [x] Runtime test invalid key names such as `example:` and `:content` yield
   INVALID_CAPABILITY; valid key/helper behavior is exercised through the plugin
   integration in Task 4, not identity-only tests.
-- [ ] Add a negative type assertion for apiVersion other than 1. Keep the
+- [x] Add a negative type assertion for apiVersion other than 1. Keep the
   namespace and value mismatch assertions active under strict checking.
-- [ ] Run SDK tests and type checks; commit
+- [x] Run SDK tests and type checks; commit
   `feat(sdk): add plugin and capability contracts` with a detailed body.
 
 ## Task 3: Managed core/session shell and foundation migration
