@@ -12,6 +12,13 @@ export type {
   CapabilityKey,
 } from "../capabilities/types.ts";
 export type {
+  EditContext,
+  EditingSnapshot,
+  EditOptions,
+  MutationResult,
+  Revision,
+} from "../editing/types.ts";
+export type {
   ErrorCode,
   ErrorContext,
   OmniviewErrorOptions,
@@ -26,6 +33,15 @@ export type {
   PluginDocument,
   ProbeContext,
 } from "../plugins/types.ts";
+export type {
+  CaptureContext,
+  EditingDefinition,
+  SerializationResult,
+  SerializationSnapshot,
+  SerializeContext,
+  SerializedData,
+  SerializeOptions,
+} from "../serialization/types.ts";
 export type {
   ReadableSource,
   ReadOptions,

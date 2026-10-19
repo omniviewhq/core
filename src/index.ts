@@ -7,12 +7,21 @@ export type { CapabilityEntry, CapabilityKey } from "./capabilities/types.ts";
 export { createOmniview } from "./core/create-core.ts";
 export type { CoreOptions, Omniview, OpenOptions } from "./core/types.ts";
 export type {
+  EditingSnapshot,
+  EditOptions,
+  Revision,
+} from "./editing/types.ts";
+export type {
   ErrorCode,
   ErrorContext,
   OmniviewErrorOptions,
 } from "./errors.ts";
 export { OmniviewError } from "./errors.ts";
 export type { PluginDefinition } from "./plugins/types.ts";
+export type {
+  SerializationResult,
+  SerializeOptions,
+} from "./serialization/types.ts";
 export type {
   DocumentSession,
   LoadOptions,

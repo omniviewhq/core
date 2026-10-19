@@ -277,7 +277,7 @@ snapshot resources through one diagnostic owner.
 **Files:** Create `src/editing/types.ts`, `src/serialization/types.ts`,
 `tests/editing.types.ts`; modify type exports in `src/index.ts`, `src/sdk/index.ts`.
 
-- [ ] Write the following compile-time assertions before adding the exports:
+- [x] Write the following compile-time assertions before adding the exports:
 
 ```ts
 import type { EditingSnapshot, Revision, SerializationResult } from "../src/index.ts";
@@ -315,15 +315,15 @@ export function checkContracts(
 }
 ```
 
-- [ ] Run `bun run typecheck`; expect missing root/SDK type exports.
-- [ ] Add exactly the declarations from the approved design's public-contract
+- [x] Run `bun run typecheck`; expect missing root/SDK type exports.
+- [x] Add exactly the declarations from the approved design's public-contract
   section, with type-only imports and JSDoc. Export host types from root and
   all authoring types from SDK. Use `Revision = string`; counters stay private.
   Do not yet add required methods to existing runtime interfaces; their first
   behavior is introduced in subsequent tasks rather than fake runtime methods.
-- [ ] Run `bun run typecheck`, then `bun run check`. Type-only files must not
+- [x] Run `bun run typecheck`, then `bun run check`. Type-only files must not
   reduce executable coverage or add dependencies.
-- [ ] Commit `feat(editing): define shared editing contracts` with the strict
+- [x] Commit `feat(editing): define shared editing contracts` with the strict
   synchronous-change/async-operation distinction in its body.
 
 ## Task 2: Optional support, policy precedence, and observable state
