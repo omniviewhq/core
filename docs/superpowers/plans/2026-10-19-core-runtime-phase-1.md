@@ -486,7 +486,7 @@ contract; they do not mock private collaborators.
 `tests/sources.test.ts`. Extend `src/index.ts` with source/error exports while
 retaining the foundation exports until Task 3 migrates them.
 
-- [ ] **Red:** Add and run the first source test:
+- [x] **Red:** Add and run the first source test:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -505,11 +505,11 @@ test("reads a named source using exclusive-end byte ranges", async () => {
 Run `bun test tests/sources.test.ts`; expect failure because createSource does
 not exist, then scaffold its exported signature and observe the behavior fail.
 
-- [ ] **Green:** Implement the declared source API: validate input/name, capture
+- [x] **Green:** Implement the declared source API: validate input/name, capture
   an immutable Blob or copied bytes, snapshot metadata, and implement read with
   explicit integer/range validation and copied output. Use the shared abort race
   for asynchronous reads; no fetch/Node/Bun imports in source modules.
-- [ ] **Expand one red/green cycle per row:**
+- [x] **Expand one red/green cycle per row:**
 
 | Case | Independent expected result |
 | --- | --- |
@@ -521,11 +521,11 @@ not exist, then scaffold its exported signature and observe the behavior fail.
 | blank name / invalid runtime input | INVALID_SOURCE |
 | already-aborted read with a supplied reason | CANCELLED with same cause |
 
-- [ ] Add an error assertion proving `.code`, `.context`, and `.cause` preserve
+- [x] Add an error assertion proving `.code`, `.context`, and `.cause` preserve
   independently supplied values. Test source MIME values as metadata, not a
   fixed assumption that Blob never appends a charset parameter.
-- [ ] Run focused tests and `bun run typecheck`.
-- [ ] Commit `feat(sources): add portable readable sources` with the source
+- [x] Run focused tests and `bun run typecheck`.
+- [x] Commit `feat(sources): add portable readable sources` with the source
   ownership/range/abort decisions and validation in the body.
 
 ## Task 2: Plugin-author SDK and typed capability keys
