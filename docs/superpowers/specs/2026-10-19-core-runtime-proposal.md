@@ -177,9 +177,10 @@ instance-scoped, and namespaced, including portal roots. Follow the
 
 ## Editing and saving
 
-The proposed [phase 2 design](2026-10-20-editing-protocol-design.md) specifies
+The approved [phase 2 design](2026-10-20-editing-protocol-design.md) specifies
 async operations, guarded changes, revisions, captures, and persistence receipts.
-It is awaiting review and is not an implemented API.
+Its [implementation plan](../plans/2026-10-20-editing-protocol-phase-2.md) is ready;
+this is not an implemented API.
 
 Future protocol: no editing policy, mode/save, revision, dirty state,
 serialization, or persistence acknowledgement is implemented in this phase.

@@ -1,8 +1,9 @@
 # Editing, revisions, and persistence protocol
 
-Status: proposed design for phase 2; not an implemented API. Review this document
-before writing its detailed implementation plan. The phase 1 runtime remains
-unchanged. Async edit operations are a confirmed requirement.
+Status: design approved by the user on 2026-10-20; not an implemented API.
+The [implementation plan](../plans/2026-10-20-editing-protocol-phase-2.md)
+defines the execution sequence. The phase 1 runtime remains unchanged.
+Async edit operations are a confirmed requirement.
 
 Related documents: [runtime architecture](2026-10-19-core-runtime-proposal.md),
 [customization](2026-10-19-customization-design.md),
@@ -369,6 +370,11 @@ completion so resources do not accumulate. Session disposal awaits all known
 capture cleanup but does not await an unresolved serializer promise. A pending
 known cleanup itself is still awaited, as in phase 1.
 
+Cleanup may initiate owner closure without awaiting it. It must not return or
+await that owner's disposal promise when the owner is waiting for this same
+cleanup; such a self-dependency cannot complete. Reentrant closure tests must
+distinguish initiating disposal from awaiting one's own cleanup cycle.
+
 Normalize successful `SerializedData` using `createSource`: copy Uint8Array data,
 retain immutable Blob bytes, and validate metadata. An explicit output name or
 MIME type wins; otherwise use the session's captured original name and MIME type.
@@ -610,9 +616,10 @@ consumers. No Bun/Node/framework/DOM-renderer imports or CSS enter public code.
 
 ## Review and release boundary
 
-Review this design, especially async partial-progress semantics, default
-read-only policy, and storage acknowledgement ordering, before preparing the
-detailed implementation plan. Package version stays unchanged while planning;
+The approved design includes async partial-progress semantics, default
+read-only policy, and storage acknowledgement ordering. Follow the linked
+implementation plan before changing runtime code. Package version stays unchanged
+while planning;
 determine release versioning against actual published history before releasing.
 The optional editing result extends apiVersion 1; existing definitions remain
 valid. A plugin using this new SDK must declare an appropriate core package
