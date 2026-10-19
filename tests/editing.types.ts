@@ -1,4 +1,5 @@
 import type {
+  DocumentSession,
   EditingSnapshot,
   Revision,
   SerializationResult,
@@ -10,6 +11,7 @@ import type {
   EditOptions,
   MaybePromise,
   MutationResult,
+  PluginContext,
   SerializationSnapshot,
   SerializeContext,
   SerializedData,
@@ -58,4 +60,23 @@ export function checkContracts(
     pending,
     numeric,
   ];
+}
+
+export function checkManagedEditing(
+  session: DocumentSession,
+  plugin: PluginContext,
+  result: SerializationResult,
+): void {
+  const operation: Promise<string> = plugin.edit(async ({ commit }) => {
+    await Promise.resolve();
+    return commit(() => ({ changed: true, value: "result" }));
+  });
+  const encoded: Promise<SerializationResult> = session.serialize();
+  session.setReadOnly(true);
+  session.markPersisted(result);
+  // @ts-expect-error Acknowledgements require issued results, not revision strings.
+  session.markPersisted("1");
+  // @ts-expect-error Policy values are boolean.
+  session.setReadOnly("false");
+  void [operation, encoded];
 }
