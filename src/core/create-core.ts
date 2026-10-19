@@ -5,9 +5,19 @@ import { createSession } from "../sessions/create-session.ts";
 import type { DocumentSession } from "../sessions/types.ts";
 import type { CoreOptions, Omniview } from "./types.ts";
 
+function resolveReadOnly(
+  value: boolean | undefined,
+  fallback: boolean,
+): boolean {
+  if (value !== undefined && typeof value !== "boolean")
+    throw new OmniviewError("INVALID_OPTIONS", "readOnly must be boolean");
+  return value ?? fallback;
+}
+
 /** Create a headless plugin registry with managed document sessions. */
 export function createOmniview(options: CoreOptions): Omniview {
   const report = createReporter(options.onError);
+  const readOnly = resolveReadOnly(options.readOnly, true);
   const plugins = createRegistry(options.plugins);
   let nextId = 0;
   let disposal: Promise<void> | undefined;
@@ -29,6 +39,8 @@ export function createOmniview(options: CoreOptions): Omniview {
           "Expected a readable source with valid metadata",
         );
       }
+      const policy = resolveReadOnly(sessionOptions?.readOnly, readOnly);
+      const pluginId = sessionOptions?.pluginId;
       const session = createSession(
         `session-${++nextId}`,
         source,
@@ -39,7 +51,7 @@ export function createOmniview(options: CoreOptions): Omniview {
           );
         },
         report,
-        sessionOptions,
+        { readOnly: policy, ...(pluginId === undefined ? {} : { pluginId }) },
       );
       sessions = Object.freeze([...sessions, session]);
       return session;

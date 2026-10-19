@@ -9,6 +9,8 @@ import type { ReadableSource } from "../sources/types.ts";
 
 /** Headless composition and out-of-band failure reporting. */
 export interface CoreOptions {
+  /** Default host policy for new sessions; defaults to true. */
+  readonly readOnly?: boolean;
   /** Ordered registrations, captured at construction; definitions remain read-only. */
   readonly plugins: readonly PluginDefinition[];
   /** Receive observer and detached cleanup failures; defaults to console.error. */

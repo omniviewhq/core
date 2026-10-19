@@ -1,4 +1,6 @@
 import type { CapabilityEntry } from "../capabilities/types.ts";
+import type { EditContext, EditOptions } from "../editing/types.ts";
+import type { EditingDefinition } from "../serialization/types.ts";
 import type { ReadableSource } from "../sources/types.ts";
 
 /** A synchronous result or a promise-compatible asynchronous result. */
@@ -19,10 +21,17 @@ export interface PluginContext extends ProbeContext {
   readonly sessionId: string;
   /** Register one resource cleanup; call the returned function to unregister it. */
   onDispose(cleanup: Cleanup): () => void;
+  /** Run async document work; accept each model change through its guarded context. */
+  edit<T>(
+    work: (context: EditContext) => MaybePromise<T>,
+    options?: EditOptions,
+  ): Promise<T>;
 }
 
 /** A format plugin's opened document and optional owned resources. */
 export interface PluginDocument {
+  /** Optional model capture protocol enabling coordinated document editing. */
+  readonly editing?: EditingDefinition;
   /** Named object APIs, validated and snapshotted before the session becomes ready. */
   readonly capabilities?: readonly CapabilityEntry[];
   /** Optional cleanup registered after resources acquired during open. */

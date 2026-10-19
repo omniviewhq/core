@@ -1,5 +1,13 @@
 /** Stable failure categories shared by host applications and plugins. */
 export type ErrorCode =
+  | "INVALID_OPTIONS"
+  | "INVALID_EDITING"
+  | "EDITING_UNSUPPORTED"
+  | "READ_ONLY"
+  | "EDIT_BUSY"
+  | "EDIT_FAILED"
+  | "SERIALIZATION_FAILED"
+  | "INVALID_PERSISTENCE"
   | "INVALID_SOURCE"
   | "INVALID_RANGE"
   | "INVALID_PLUGIN"

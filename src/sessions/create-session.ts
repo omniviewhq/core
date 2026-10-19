@@ -1,11 +1,13 @@
 import { collectCapabilities } from "../capabilities/registry.ts";
 import type { CapabilityKey } from "../capabilities/types.ts";
+import { createEditing } from "../editing/create-editing.ts";
 import { type ErrorContext, OmniviewError } from "../errors.ts";
 import { abortable, cancellation } from "../lifecycle/cancellation.ts";
 import type { ErrorReporter } from "../lifecycle/reporting.ts";
 import { createResources } from "../lifecycle/resources.ts";
 import { pluginFailure, resolvePlugin } from "../plugins/resolve-plugin.ts";
 import type { PluginDefinition } from "../plugins/types.ts";
+import { createSerialization } from "../serialization/create-serialization.ts";
 import type { ReadableSource } from "../sources/types.ts";
 import { createStore } from "./state.ts";
 import type { DocumentSession, SessionOptions } from "./types.ts";
@@ -41,6 +43,37 @@ export function createSession(
   let cleanupReported = false;
   let capabilities: ReadonlyMap<string, object> = new Map();
   let operationContext: ErrorContext = context;
+  let disposed = false;
+  const editing = createEditing(
+    {
+      ensureReady() {
+        if (disposed)
+          throw new OmniviewError("SESSION_CLOSED", "Session is disposed", {
+            context: operationContext,
+          });
+        if (store.getSnapshot().status !== "ready")
+          throw new OmniviewError("SESSION_NOT_READY", "Session is not ready", {
+            context: operationContext,
+          });
+      },
+      context: () => operationContext,
+      publish() {
+        const current = store.getSnapshot();
+        const next = editing.getSnapshot();
+        if (!disposed && current.status === "ready" && current.editing !== next)
+          store.publish({ ...current, editing: next });
+      },
+    },
+    options.readOnly ?? true,
+  );
+  const serialization = createSerialization({
+    editing,
+    source: identity.source,
+    context: () => operationContext,
+    isClosed: () => disposed,
+    own: resources.add,
+    report,
+  });
 
   async function run(): Promise<void> {
     if (controller.signal.aborted)
@@ -61,6 +94,7 @@ export function createSession(
             signal: controller.signal,
             sessionId: id,
             onDispose: resources.add,
+            edit: editing.edit,
           });
           if (!result || typeof result !== "object" || Array.isArray(result)) {
             throw new TypeError(
@@ -72,7 +106,7 @@ export function createSession(
           if (cleanup !== undefined && typeof cleanup !== "function")
             throw new TypeError("Document dispose must be callable");
           if (cleanup) resources.add(() => cleanup.call(result));
-          return { entries: result.capabilities };
+          return { entries: result.capabilities, editing: result.editing };
         } catch (cause) {
           throw pluginFailure(cause, pluginContext);
         }
@@ -83,15 +117,24 @@ export function createSession(
     if (controller.signal.aborted)
       throw cancellation(controller.signal, pluginContext);
     capabilities = collectCapabilities(captured.entries, pluginContext);
+    editing.attach(captured.editing);
     if (controller.signal.aborted)
       throw cancellation(controller.signal, pluginContext);
-    store.publish({ ...identity, status: "ready", pluginId: plugin.id });
+    store.publish({
+      ...identity,
+      status: "ready",
+      pluginId: plugin.id,
+      editing: editing.getSnapshot(),
+    });
   }
 
   return {
     id,
     getSnapshot: store.getSnapshot,
     subscribe: store.subscribe,
+    setReadOnly: editing.setReadOnly,
+    serialize: serialization.serialize,
+    markPersisted: serialization.markPersisted,
     getCapability<T extends object>(key: CapabilityKey<T>): T | undefined {
       const status = store.getSnapshot().status;
       if (status === "disposed")
@@ -153,6 +196,7 @@ export function createSession(
     },
     dispose() {
       if (disposal) return disposal;
+      disposed = true;
       disposal = resources.dispose().catch((error: unknown) => {
         if (!cleanupReported) throw error;
       });
@@ -160,9 +204,14 @@ export function createSession(
       onDisposed();
       store.publish({ ...identity, status: "disposed" });
       store.close();
-      controller.abort(
-        new OmniviewError("SESSION_CLOSED", "Session is disposed", { context }),
+      const reason = new OmniviewError(
+        "SESSION_CLOSED",
+        "Session is disposed",
+        { context: operationContext },
       );
+      editing.close(reason);
+      serialization.close(reason);
+      controller.abort(reason);
       return disposal;
     },
   };

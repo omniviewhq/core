@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { createSource } from "../src/index.ts";
+import { createOmniview, createSource } from "../src/index.ts";
 import {
   defineCapability,
   definePlugin,
@@ -13,13 +13,13 @@ test("the default author fixture supports a source and opens a document", async 
   const source = createSource(new Blob(["hello"]));
   const signal = new AbortController().signal;
   expect(await plugin.supports({ source, signal })).toBe(true);
-  const document = await plugin.open({
-    source,
-    signal,
-    sessionId: "fixture-1",
-    onDispose: () => () => {},
+  const core = createOmniview({ plugins: [plugin] });
+  const session = await core.open(source);
+  expect(session.getSnapshot()).toMatchObject({
+    status: "ready",
+    editing: { supported: false },
   });
-  expect(document).toEqual({});
+  await core.dispose();
 });
 
 test("plugin authors can read a source and publish a document capability", async () => {
@@ -39,17 +39,9 @@ test("plugin authors can read a source and publish a document capability", async
   const source = createSource(new Blob(["hello"], { type: "text/plain" }));
   const signal = new AbortController().signal;
   expect(await plugin.supports({ source, signal })).toBe(true);
-  const document = await plugin.open({
-    source,
-    signal,
-    sessionId: "fixture-2",
-    onDispose: () => () => {},
-  });
-  const entry = document.capabilities[0];
-  expect(entry).toBeDefined();
-  if (!entry) throw new Error("The plugin did not publish its capability");
-  expect(entry.key.id).toBe("example.text:content");
-  expect((entry.value as { getText(): string }).getText()).toBe("hello");
+  const core = createOmniview({ plugins: [plugin] });
+  const session = await core.open(source);
+  expect(session.getCapability(text)?.getText()).toBe("hello");
   // The author retains the concrete value while publication erases its type.
   const value = { getText: () => "a second document" };
   const publication = provideCapability(text, value);
@@ -58,6 +50,7 @@ test("plugin authors can read a source and publish a document capability", async
   expect(Object.isFrozen(text)).toBe(true);
   expect(Object.isFrozen(publication)).toBe(true);
   expect(plugin.authorLabel).toBe("Example text reader");
+  await core.dispose();
 });
 
 test.each([
