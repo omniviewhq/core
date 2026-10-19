@@ -6,6 +6,12 @@ repository; framework-independent consumption; editing supported by the core
 contract and optionally provided by plugins; 100% source coverage.
 The primary branch is `master`.
 
+Developer customization is a public architecture requirement. The core stays
+headless; optional UI supports theming, replaceable regions, and fully custom
+rendering through public state and commands. All shipped style names and
+selectors follow the namespaced, instance-scoped
+[customization contract](2026-10-19-customization-design.md).
+
 The repository is a single TypeScript library. The public source depends only on
 standard Web APIs. Bun provides installation, testing, coverage, type checking,
 and JavaScript bundling; TypeScript emits declarations and checks public source

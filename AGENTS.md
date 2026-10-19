@@ -23,6 +23,19 @@ belongs in its own repository. Read README.md and the architecture document firs
   body covering intent, important changes, and validation.
 - Repository preparation does not authorize registry publication or git push.
 
+## Customization and style isolation
+
+- Follow docs/superpowers/specs/2026-10-19-customization-design.md for UI work.
+- Keep core headless. UI must support optional themes, replaceable regions,
+  and fully custom rendering over public state, commands, and events.
+- Prefix shipped classes with omniview-, CSS variables with --omniview-,
+  and data attributes with data-omniview-. Namespace animations, layers,
+  fonts, counters, plugin hooks, and generated IDs as well.
+- Scope all shipped selectors to an Omniview root, including portal roots.
+  No generic global classes, document-wide resets, or unscoped elements.
+- Keep default CSS optional, easy to override, and independent per instance.
+  Official plugins and adapters must follow the same customization contract.
+
 ## Skills
 
 Project skills are installed in .agents/skills with full supporting files.

@@ -72,6 +72,15 @@ A session declares `mode: "view"` or `mode: "edit"`. Only editable sessions expo
 them. The host owns the returned session and calls `dispose()` when finished.
 UI rendering and editing interactions will be specified with the first plugins.
 
+## Customization architecture
+
+Future UI and official plugins must support themes, replacement regions, and
+fully custom interfaces over the headless core. Default CSS is optional and
+scoped to the viewer root. Shipped classes use `omniview-*`, custom properties
+use `--omniview-*`, and attributes use `data-omniview-*`; animations, layers, and
+generated IDs are namespaced too. Generic global style names are forbidden.
+See the [customization contract](docs/superpowers/specs/2026-10-19-customization-design.md).
+
 ## Development
 
 Use Bun **1.4.3** (see `packageManager`):
