@@ -114,8 +114,8 @@ fallback after a failure. All-false detection rejects `UNSUPPORTED_SOURCE`.
 bypassing all probes, including its own. A missing ID rejects
 `PLUGIN_NOT_FOUND`. The host is responsible for choosing an appropriate plugin.
 
-`open({ source, signal, sessionId, onDispose })` returns a `PluginDocument`
-with optional capability entries and optional cleanup. It does not return a
+`open({ source, signal, sessionId, onDispose, edit })` returns a `PluginDocument`
+with optional capability entries, cleanup, and editing support. It does not return a
 managed session. Core validates the result and capabilities before readiness.
 Probe/open methods keep their definition's `this`; returned `dispose` keeps
 its result object's `this`.
@@ -133,6 +133,246 @@ only while ready. Other live states throw `SESSION_NOT_READY`; disposed
 sessions throw `SESSION_CLOSED`. Values belong to a single session and must
 not be used after it closes. Core cannot revoke references retained by a host;
 plugin methods should enforce their own resource validity where necessary.
+Mutating methods must use `edit` even when called through a retained capability;
+that boundary checks core policy and lifetime again.
+
+## Optional editing
+
+Return `editing: { capture() { ... } }` to enable the protocol. Existing
+viewer-only definitions remain valid under `apiVersion: 1` and report
+`editing: { supported: false }` in ready snapshots. Editing methods on such a
+session fail with `EDITING_UNSUPPORTED`. Plugins published against this SDK
+must declare an appropriate core package version; `apiVersion` alone does not
+negotiate feature availability.
+
+This TypeScript fixture lives in the plugin's own module, for example
+`editable-text-fixture.ts`:
+
+```ts
+import {
+  defineCapability, definePlugin, provideCapability,
+  type EditOptions, type PluginDefinition,
+} from "@omniview/core/sdk";
+
+interface EditableText {
+  getText(): string;
+  replaceText(value: string, options?: EditOptions): Promise<void>;
+  appendChunks(chunks: AsyncIterable<string>, options?: EditOptions): Promise<void>;
+}
+
+export const editableText =
+  defineCapability<EditableText>("example.text:editable");
+
+export function editableTextFixture(): PluginDefinition {
+  return definePlugin({
+    id: "example/editable-text-fixture",
+    apiVersion: 1,
+    supports: ({ source }) => source.mimeType.split(";")[0] === "text/plain",
+    async open({ source, signal, onDispose, edit }) {
+      // Initialization establishes revision "0" and is not an edit.
+      let text = new TextDecoder().decode(await source.read({ signal }));
+      onDispose(() => { text = ""; });
+      return {
+        capabilities: [provideCapability(editableText, {
+          getText: () => text,
+          replaceText: (next, options) => edit(async ({ signal, commit }) => {
+            const prepared = await Promise.resolve(next);
+            signal.throwIfAborted();
+            commit(() => {
+              const changed = text !== prepared;
+              text = prepared;
+              return { changed, value: undefined };
+            });
+          }, options),
+          appendChunks: (chunks, options) => edit(async ({ signal, commit }) => {
+            for await (const chunk of chunks) {
+              signal.throwIfAborted();
+              commit(() => {
+                text += chunk;
+                return { changed: chunk.length > 0, value: undefined };
+              });
+            }
+          }, options),
+        })],
+        editing: {
+          capture() {
+            const capturedText = text;
+            return {
+              serialize: () => ({
+                data: new TextEncoder().encode(capturedText),
+                mimeType: "text/plain;charset=utf-8",
+              }),
+            };
+          },
+        },
+      };
+    },
+  });
+}
+```
+
+`edit(work, { signal })` always returns a promise. The operation can await
+preparation and accept several changes. `commit(change)` runs synchronously and
+returns the callback's `value`; its result must contain a boolean `changed` and
+a `value` property, including when that value is `undefined`. Do not pass an
+async callback or return a thenable from `commit`. Every change affecting
+serialized content must use this boundary. Initialization during `open`, caches,
+selection, and viewport state do not advance document revisions.
+
+Each `changed: true` commit advances one revision; `changed: false` preserves it.
+Ready snapshots contain a frozen editing object with `supported`, `readOnly`,
+`busy`, `revision`, `persistedRevision`, and `dirty`. Both revisions start at
+`"0"`; the initial baseline does not imply that core wrote anything or that a
+serializer reproduces the input bytes. Revisions are opaque session-local
+strings: compare equality rather than converting them to numbers. Dirty state
+is `revision !== persistedRevision`.
+
+Policy precedence is the session's `readOnly`, then the core's `readOnly`, then
+`true`. Hosts enable writes with `{ readOnly: false }` and can call
+`session.setReadOnly(boolean)` after readiness. Core checks policy before work
+and before every accepted change, including calls from a custom UI or retained
+capability. Changing to read-only cancels an active writer with `CANCELLED` and
+a `READ_ONLY` cause; later fresh edits reject `READ_ONLY`. Read-only does not
+erase capabilities or revisions and permits serialization and acknowledgement.
+
+One writer is allowed per session. A second request rejects `EDIT_BUSY` without
+queuing work; other sessions and cores have independent writers. Caller abort,
+permission revocation, and disposal promptly invalidate the operation even if
+its async work ignores the signal. Pass the operation signal to cooperative
+work. A cancelled or completed context can never commit again; a live stale
+context fails with `CANCELLED`, and a disposed session with `SESSION_CLOSED`.
+Do not retain contexts for a later operation.
+
+Accepted changes survive later preparation failure, cancellation, or permission
+revocation. In `appendChunks`, two nonempty chunks accepted before a third read
+fails remain applied at revision `"2"`; they remain dirty until acknowledged.
+Core supplies no rollback. A throwing or invalid commit conservatively advances
+the revision once because its opaque callback may already have mutated the
+model, then rejects the operation with `EDIT_FAILED`. Authors must leave their
+model valid even on failure. Edit/serialization failures keep the session ready;
+they do not become terminal load failures.
+
+During a commit callback, nested changes, serialization, policy changes, and
+acknowledgements fail `EDIT_BUSY`. Reads remain available. Once the accepted
+revision is published, a subscriber may serialize it, change policy, or dispose;
+nested commits still fail. Disposal always wins over later work.
+
+## Immutable captures and output ownership
+
+`session.serialize({ signal })` takes a synchronous capture of the current
+revision at invocation, then encodes asynchronously. It is allowed while a
+writer awaits preparation, in a committed revision subscriber, and in read-only
+mode. Multiple encoders can run concurrently. It cannot run during a model
+change or another capture. Capture also blocks edit starts, commits, policy
+changes, and acknowledgements until validation and ownership are settled.
+
+`capture({ revision })` must return a synchronous `SerializationSnapshot`.
+Copy mutable data or retain immutable/copy-on-write data; the returned
+`serialize({ revision, signal })` must read only that captured state. It must
+never encode the later live model under an earlier revision. Core preserves
+capture and serializer method receivers but cannot clone arbitrary plugin data.
+Async/thenable captures are rejected with `SERIALIZATION_FAILED`; any eventual
+returned snapshot is cleaned, and late rejections remain observed.
+
+The encoder returns `{ data: Blob | Uint8Array, name?, mimeType? }`. It may await
+worker or compression work and should honor its per-serialization signal.
+Caller abort and session disposal cancel that serialization; changing read-only
+policy does not. Output byte arrays are copied, output reads return independent
+bytes, and output remains usable after session disposal. Metadata defaults to
+the original source unless overridden. Neither output metadata nor persistence
+changes the source metadata in session snapshots.
+
+A snapshot may include `dispose()` for capture resources. Core owns that cleanup
+once across completion, failure, cancellation, and session disposal; do not also
+register it with `onDispose`. Successful serialization waits for its cleanup
+before issuing a result. If encoding succeeds but cleanup fails, serialization
+rejects `CLEANUP_FAILED` and issues no receipt. If encoding fails and cleanup also
+fails, the encoding error remains primary and cleanup is reported through
+`onError`. Session-owned cleanup failures reject explicit disposal without a
+duplicate diagnostic from the serialization wrapper. Malformed captures still
+release any valid cleanup that core obtained.
+
+Cleanup may initiate disposal without awaiting it. It must never return or await
+the disposal promise of an owner whose cleanup includes that same callback:
+that creates a self-dependency. This rule applies to capture and document cleanup.
+
+## Host persistence and autosave building block
+
+Only the host chooses storage, detects successful writes, and calls
+`session.markPersisted(output)`. The exact successful `SerializationResult`
+object is the receipt; a spread/JSON copy, fabricated value, or receipt from a
+different session/core fails `INVALID_PERSISTENCE`. Serialization itself does
+not change persisted state. A receipt remains readable after disposal, but a
+closed session cannot acknowledge it.
+
+This host example imports the public fixture module above. `persistBytes` and
+the optional signal belong to the host; neither is supplied by core:
+
+```ts
+import { createOmniview, createSource } from "@omniview/core";
+import { editableText, editableTextFixture } from "./editable-text-fixture.js";
+
+export async function editAndPersist(
+  persistBytes: (bytes: Uint8Array) => Promise<void>,
+  signal?: AbortSignal,
+): Promise<void> {
+  const core = createOmniview({ plugins: [editableTextFixture()] });
+  try {
+    const session = await core.open(
+      createSource(new Blob(["before"], { type: "text/plain" })),
+      { readOnly: false },
+    );
+    const text = session.getCapability(editableText);
+    if (!text) throw new Error("Text API unavailable");
+    await text.replaceText("after");
+    const output = await session.serialize(signal ? { signal } : {});
+    await persistBytes(await output.source.read());
+    session.markPersisted(output);
+  } finally {
+    await core.dispose();
+  }
+}
+```
+
+A failed write must skip acknowledgement. Acknowledging revision A after an
+edit to B keeps B dirty. If an older write actually overwrites newer stored
+bytes, acknowledge the older receipt: persisted state moves back to A and B
+becomes dirty again. Hosts must sequence conflicting writes or use storage
+version checks and acknowledge authoritative storage commit order; HTTP response
+arrival alone may not establish that order. One session tracks one authoritative
+destination. An export/download copy need not be acknowledged. A receipt can be
+reused when its bytes are actually written again. Acknowledgement is allowed in
+read-only mode and while a writer awaits work; it changes no model or revision.
+
+For autosave, observe revision changes and capture immediately in the subscriber.
+The host receives a promise to schedule, write, acknowledge, and handle failures:
+
+```ts
+import type {
+  DocumentSession, Revision, SerializationResult,
+} from "@omniview/core";
+
+export function observeCaptures(
+  session: DocumentSession,
+  scheduleWrite: (output: Promise<SerializationResult>) => void,
+): () => void {
+  let capturedRevision: Revision | undefined;
+  return session.subscribe(() => {
+    const state = session.getSnapshot();
+    if (state.status !== "ready" || !state.editing.supported ||
+        !state.editing.dirty || state.editing.revision === capturedRevision) return;
+    capturedRevision = state.editing.revision;
+    // Capture now; awaiting or delaying this call could capture a later revision.
+    scheduleWrite(session.serialize());
+  });
+}
+```
+
+This is a capture hook, not an autosave service. The host owns scheduling,
+coalescing, retries, cancellation signals, write ordering, and user feedback.
+`scheduleWrite` must immediately observe promise rejection even if it defers
+storage work; after a failed write it must explicitly choose whether to retry.
+Install the subscriber before edits and unsubscribe when its host flow ends.
 
 ## State and cancellation
 
@@ -188,8 +428,9 @@ Late plugin rejections remain observed and do not become unhandled rejections.
 
 ## Future protocols
 
-Core currently offers lifecycle and author-defined capabilities. Shared editing,
-read-only policy, revisions, dirty tracking, serialization, and persistence
-acknowledgement need the next [editing phase](superpowers/specs/2026-10-19-core-runtime-proposal.md#editing-and-saving).
-The host owns persistence. UI, official format implementations, adapters, and
-`@omniview/core/testing` are future work; do not import an unimplemented subpath.
+The [editing protocol](superpowers/specs/2026-10-20-editing-protocol-design.md)
+coordinates plugin-owned models without imposing an AST or command language.
+UI, official format implementations, adapters, a common undo/redo engine,
+collaboration, autosave scheduling, and `@omniview/core/testing` remain future
+work. Do not import an unimplemented subpath. Format plugins and framework
+adapters belong in their own repositories and packages.

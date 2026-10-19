@@ -27,10 +27,12 @@ on sessions. The root serves applications; `/sdk` serves plugin authors without
 a second runtime. See the [runtime architecture](2026-10-19-core-runtime-proposal.md)
 for the implemented module layout and future stages.
 
-Editing/save, revisions, persistence acknowledgement, UI, format plugins,
-framework adapters, and the portable public test kit remain future work. Host
-applications own persistence and await session or core disposal. The old
-`mode`/`save()` union is not a current contract.
+Phase 2 adds optional async editing with synchronous accepted changes, revision
+and dirty state, immutable serialization captures, and exact persistence receipts.
+See the [editing protocol](2026-10-20-editing-protocol-design.md). Host applications
+own storage and acknowledge the output actually persisted. The old `mode`/`save()`
+union is not a current contract. UI, format plugins, framework adapters, undo/redo,
+and the portable public test kit remain future work.
 
 Developer customization remains a public architecture requirement. Future UI
 supports optional themes, replaceable regions, and fully custom rendering over

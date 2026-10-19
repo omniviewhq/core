@@ -1,14 +1,15 @@
 # @omniview/core
 
-A portable, headless runtime for plugin-driven file viewing and, in a future
-protocol, optional editing. Every format plugin and framework adapter lives in
+A portable, headless runtime for plugin-driven file viewing and optional editing.
+Every format plugin and framework adapter lives in
 its own repository and package.
 
 The managed runtime provides readable sources, deterministic async plugin
 selection, independent observable sessions, typed capabilities, cancellation,
-and asynchronous cleanup. The public API is experimental. Editing, saving,
-rendering, controls, format parsers, framework adapters, and a public test kit
-are not implemented.
+and asynchronous cleanup. Editable plugins use guarded async operations,
+revision/dirty state, immutable serialization captures, and host persistence
+acknowledgements. The public API is experimental. Rendering, controls, format
+parsers, framework adapters, and a public test kit remain future work.
 
 ## Use without a framework
 
@@ -101,8 +102,99 @@ cleanup failures reach `onError`, defaulting to `console.error`.
 
 See [plugin authoring](docs/plugin-authoring.md) for TypeScript, source ranges,
 cancellation, and error details, and [migration](docs/migration-managed-sessions.md)
-for the replaced foundation API. The host owns persistence; there is no current
-`mode`, `save()`, editing policy, revision, or dirty-state protocol.
+for the replaced foundation API. The host owns persistence; core has no `mode`
+or `save()` method.
+
+## Optional editing and persistence
+
+A plugin enables editing by returning an `editing.capture()` definition. A
+viewer-only plugin still works and reports `editing.supported === false` in
+ready state. Editable sessions default to read-only: policy precedence is the
+session's `readOnly`, the core's `readOnly`, then `true`. Enable writes explicitly
+with `{ readOnly: false }`; `session.setReadOnly(true)` can revoke them later.
+Read-only sessions can still serialize and acknowledge persisted output.
+
+This plain JavaScript fixture uses the same public capability for every host:
+
+```js
+import { createOmniview, createSource } from "@omniview/core";
+import {
+  defineCapability, definePlugin, provideCapability,
+} from "@omniview/core/sdk";
+
+const editableText = defineCapability("example.text:editable");
+const editablePlugin = definePlugin({
+  id: "example/editable-text-fixture",
+  apiVersion: 1,
+  supports: () => true,
+  async open({ source, signal, edit }) {
+    let text = new TextDecoder().decode(await source.read({ signal }));
+    return {
+      capabilities: [provideCapability(editableText, {
+        getText: () => text,
+        replaceText: (next) => edit(async ({ commit }) => {
+          const prepared = await Promise.resolve(next);
+          commit(() => {
+            const changed = text !== prepared;
+            text = prepared;
+            return { changed, value: undefined };
+          });
+        }),
+      })],
+      editing: {
+        capture() {
+          const captured = text;
+          return {
+            serialize: () => ({ data: new TextEncoder().encode(captured) }),
+          };
+        },
+      },
+    };
+  },
+});
+
+// persistBytes belongs to the host and fulfills only after a successful write.
+export async function editAndPersist(persistBytes) {
+  const core = createOmniview({ plugins: [editablePlugin] });
+  try {
+    const session = await core.open(createSource(new Blob(["before"])), {
+      readOnly: false,
+    });
+    const text = session.getCapability(editableText);
+    if (!text) throw new Error("Text API unavailable");
+    await text.replaceText("after");
+    const output = await session.serialize();
+    await persistBytes(await output.source.read());
+    session.markPersisted(output);
+  } finally {
+    await core.dispose();
+  }
+}
+```
+
+`edit` may await preparation and accept several changes through synchronous
+`commit` callbacks. Each `changed: true` advances an opaque string revision;
+`changed: false` does not. One writer is allowed per session, with no queue.
+Failures and cancellation preserve accepted changes; core supplies no rollback.
+The ready snapshot exposes `readOnly`, `busy`, `revision`, `persistedRevision`,
+and `dirty` when editing is supported. Revisions are compared for equality,
+and `dirty` means `revision !== persistedRevision`.
+
+Serialization synchronously captures one revision, then may encode it
+asynchronously while later edits proceed. Capture must retain immutable data or
+copy mutable data; encoding must not read the later live model. Output stays
+readable after disposal, and session source metadata continues to describe the
+original input, even when output supplies a different name or MIME type.
+
+Serialization alone leaves persistence state unchanged. After a successful
+authoritative write, pass the exact returned object to `markPersisted` on the
+same live session. Clones, fabricated objects, and another session's receipt
+are rejected. Failed writes must skip acknowledgement. Hosts must sequence
+conflicting writes or acknowledge their actual storage commit order: if an older
+write overwrites newer bytes, acknowledging it makes the newer document dirty
+again. Exporting a copy need not acknowledge persistence. See
+[plugin authoring](docs/plugin-authoring.md#optional-editing) for cancellation,
+capture cleanup, and an autosave building block.
 
 ## Customization architecture
 

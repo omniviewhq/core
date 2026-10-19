@@ -26,7 +26,8 @@ The user approved the [phase 2 design](../specs/2026-10-20-editing-protocol-desi
 on 2026-10-20, including async edit operations. That document is the normative
 public contract. Phase 1 baseline is commit `e2706d2`, with 98 behavior tests,
 100% source line/function coverage, root/SDK exports, and packed consumers.
-This plan contains future implementation instructions; saving it implements no API.
+The task instructions below were written before implementation. Execution results
+are recorded at the end; saving the original plan implemented no API.
 
 Read `AGENTS.md`, `GLOSSARY.md`, the design, and current modules before changing
 code. No UI, parser, command registry, rollback engine, public test-kit export,
@@ -333,7 +334,7 @@ export function checkContracts(
 `src/core/types.ts`, `src/core/create-core.ts`, `src/sessions/create-session.ts`,
 `src/errors.ts`. Introduce only controller members exercised in this task.
 
-- [ ] Write this first public behavior:
+- [x] Write this first public behavior:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -365,9 +366,9 @@ test("separates plugin editing support from host policy", async () => {
 });
 ```
 
-- [ ] Run `bun test tests/editing-policy.test.ts`; expect the absent editing arm
+- [x] Run `bun test tests/editing-policy.test.ts`; expect the absent editing arm
   or `setReadOnly` behavior to fail. Expand public types only with those features.
-- [ ] Add `PluginDocument.editing`, ready snapshot `.editing`, core/session
+- [x] Add `PluginDocument.editing`, ready snapshot `.editing`, core/session
   `readOnly?: boolean`, and `setReadOnly`. Snapshot core defaults and overrides
   once. Add all eight approved error codes without removing existing ones.
   Read optional definition fields once after result cleanup is registered.
@@ -382,12 +383,12 @@ function resolveReadOnly(value: boolean | undefined, fallback: boolean): boolean
 }
 ```
 
-- [ ] Integrate the host publication callback with the existing store. A live
+- [x] Integrate the host publication callback with the existing store. A live
   ready snapshot is recomposed only when the nested editing snapshot reference
   changes. Store notification revisions remain distinct from content revisions.
   Snapshot `{ receiver, capture }` data at attach, preserving method context.
   Do not invoke the capture method or create unused callable wrappers yet.
-- [ ] Expand one behavior per red/green cycle:
+- [x] Expand one behavior per red/green cycle:
 
 | Fixture/action | Expected assertion |
 | --- | --- |
@@ -401,7 +402,7 @@ function resolveReadOnly(value: boolean | undefined, fallback: boolean): boolean
 | Before load / unsupported / disposed policy call | `SESSION_NOT_READY` / `EDITING_UNSUPPORTED` / `SESSION_CLOSED` |
 | Repeated equal policy, source metadata checks | no extra notification; original source metadata remains frozen/stable |
 
-- [ ] Run focused tests, `bun run typecheck`, and `bun run check`; commit
+- [x] Run focused tests, `bun run typecheck`, and `bun run check`; commit
   `feat(editing): expose support and read-only policy` with option and snapshot
   compatibility details. Keep `PluginContext.edit` for its functioning slice next.
 
@@ -492,7 +493,7 @@ export function editor(session: DocumentSession): TextEditor {
 create the shared fixture above, `tests/editing.test.ts`, and extend
 `tests/editing.types.ts`.
 
-- [ ] Write the first operation test:
+- [x] Write the first operation test:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -521,20 +522,20 @@ test("accepts several changes across one async edit", async () => {
 });
 ```
 
-- [ ] Run `bun test tests/editing.test.ts`; expect missing `edit` or no accepted
+- [x] Run `bun test tests/editing.test.ts`; expect missing `edit` or no accepted
   revision behavior. Add `PluginContext.edit` with the approved generic signature,
   thread the real controller method into `plugin.open`, then add the full fixture.
-- [ ] Migrate the two manual `plugin.open({ ... })` contexts in
+- [x] Migrate the two manual `plugin.open({ ... })` contexts in
   `tests/sdk.test.ts` to real `core.open(source)` integration, retaining SDK
   capability/inference assertions and probe behavior. A new required context
   method makes those hand-written contexts obsolete. Do not stub `edit`, assert
   the missing member away, or weaken its type. Retrieve the text capability from
   the real managed session and await core cleanup.
-- [ ] Implement one explicitly settled result promise per edit as described
+- [x] Implement one explicitly settled result promise per edit as described
   above. Establish active token/busy before notifications and defer plugin work.
   Enforce ready/support/exclusive/policy/busy guards without calling denied work.
   Attach handlers to sync throws and thenables; preserve original error causes.
-- [ ] Implement synchronous commit with returned-field snapshotting, revision
+- [x] Implement synchronous commit with returned-field snapshotting, revision
   advancement, changed=false suppression, and stable frozen state. The critical
   boundary is:
 
@@ -552,12 +553,12 @@ commit(token, change):
   return captured value for a successful change
 ```
 
-- [ ] Expand scenarios consecutively: no-op replacement leaves revision `"0"`;
+- [x] Expand scenarios consecutively: no-op replacement leaves revision `"0"`;
   returned values retain their types; zero-commit async work changes only busy;
   second writer rejects `EDIT_BUSY` without invoking work; a viewer-only retained
   edit function rejects unsupported; calling edit during open rejects not-ready;
   initial read-only denial invokes no callback. Read-only APIs remain readable.
-- [ ] Run focused tests and strict types. Verify previously loaded ready
+- [x] Run focused tests and strict types. Verify previously loaded ready
   sessions still share their original load promise after revision changes.
   Keep this slice with Tasks 4-5 until the writer milestone passes full checks.
 
@@ -566,7 +567,7 @@ commit(token, change):
 **Files:** Complete writer lifetime handling in `src/editing/create-editing.ts`;
 modify session disposal composition; create `tests/editing-cancellation.test.ts`.
 
-- [ ] Write this controlled race before changing cancellation behavior:
+- [x] Write this controlled race before changing cancellation behavior:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -602,13 +603,13 @@ test("a cancelled old writer cannot change a newer operation", async () => {
 });
 ```
 
-- [ ] Run `bun test tests/editing-cancellation.test.ts`; expect cancelled work
+- [x] Run `bun test tests/editing-cancellation.test.ts`; expect cancelled work
   not settling or stale continuation changing/releasing the new operation.
-- [ ] Link each caller signal only to its own operation. On abort invalidate
+- [x] Link each caller signal only to its own operation. On abort invalidate
   first, release active ownership immediately, settle `CANCELLED`, and continue
   observing underlying work. Map revocation to a contextual READ_ONLY cause and
   closure to SESSION_CLOSED cause. `close` emits no intermediate ready state.
-- [ ] Preserve phase 1 disposal identity/ownership using this exact ordering:
+- [x] Preserve phase 1 disposal identity/ownership using this exact ordering:
 
 ```text
 session.dispose():
@@ -623,16 +624,16 @@ session.dispose():
 
   A controlled promise uses standard `new Promise` resolvers, not a new runtime
   dependency or an unlisted ES2024 ambient API. Do not await writer work here.
-- [ ] Add separate races for pre-aborted and queued edits (work never runs),
+- [x] Add separate races for pre-aborted and queued edits (work never runs),
   cancellation before any commit, cancellation after partial progress, late
   rejection, policy true while work awaits, policy false followed by a new
   operation, external abort after success, and disposal with ignored work.
   Capture a completed `TextWork` context and assert subsequent commit is denied.
-- [ ] Assert in-flight operation promise cancellation is `CANCELLED`, while a
+- [x] Assert in-flight operation promise cancellation is `CANCELLED`, while a
   new call through the disposed capability rejects `SESSION_CLOSED`. The
   retained cancelled context on a live session remains `CANCELLED` even after
   re-enable. Keep the original cause, revision and source/session/plugin context.
-- [ ] Run cancellation and all phase 1 cleanup/lifetime regressions, strict types,
+- [x] Run cancellation and all phase 1 cleanup/lifetime regressions, strict types,
   then proceed to Task 5's full writer milestone. Do not commit an unverified
   partial cancellation/cleanup boundary.
 
@@ -642,7 +643,7 @@ session.dispose():
 and `src/editing/state.ts`; create `tests/editing-failures.test.ts`,
 `tests/editing-state.test.ts`. Keep phase 1 observer isolation in the existing store.
 
-- [ ] Write the forced-failure behavior:
+- [x] Write the forced-failure behavior:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -668,17 +669,17 @@ test("a caught failed commit still rejects the operation and stays dirty", async
 });
 ```
 
-- [ ] Run `bun test tests/editing-failures.test.ts`; expect fulfillment, missing
+- [x] Run `bun test tests/editing-failures.test.ts`; expect fulfillment, missing
   conservative revision, or a nested/wrong error cause before implementation.
-- [ ] Complete first-outcome settlement. A failed callback invalidates the token
+- [x] Complete first-outcome settlement. A failed callback invalidates the token
   before notifications and cannot be neutralized by work catching its exception.
   Force `EDIT_FAILED`, advance once for uncertainty, and keep lifecycle ready.
   Work failure outside a commit does not create an additional revision.
-- [ ] Add malformed JavaScript callback results using an explicit unknown cast
+- [x] Add malformed JavaScript callback results using an explicit unknown cast
   in tests: null, primitive, missing value, nonboolean changed, throwing getters,
   and a promise. Read fields once, preserve TypeError/unknown causes, and observe
   a rejected async callback promise even though it is invalid as a change.
-- [ ] Verify reentrant behavior with controlled callbacks:
+- [x] Verify reentrant behavior with controlled callbacks:
 
 ```ts
 // Inside a test after constructing a writable session with textPlugin().
@@ -698,18 +699,18 @@ expect(attempts[0]).toMatchObject({ code:"EDIT_BUSY" });
 expect(editingState(session).revision).toBe("1");
 ```
 
-- [ ] Expand separately: busy observer starts a second operation (rejected);
+- [x] Expand separately: busy observer starts a second operation (rejected);
   busy observer revokes/disposes before scheduled work (work never called);
   revision observer revokes after an accepted change (that revision retained,
   operation cancelled); observer throws (diagnostic only); duplicate subscriptions,
   removed observers and superseded notification passes preserve phase 1 behavior.
   JSON-encode snapshot metadata and assert revision remains the string `"1"`.
-- [ ] During applying, deny nested commit, policy change, and acknowledgement
+- [x] During applying, deny nested commit, policy change, and acknowledgement
   without a second body invocation. Capture/ack guard tests join Tasks 6/8 when
   those public methods exist. During revision notification, preserve the commit
   guard across nested policy notifications; use a depth counter, not a boolean
   that an inner callback can clear.
-- [ ] Run focused tests, strict types, then `bun run check`; commit
+- [x] Run focused tests, strict types, then `bun run check`; commit
   `feat(editing): coordinate cancellable document changes` for Tasks 3-5 with
   async progress, uncertainty, cancellation and observer semantics in the body.
 
@@ -720,7 +721,7 @@ expect(editingState(session).revision).toBe("1");
 add private capture guards to the editing controller/state; modify
 `src/sessions/types.ts`, `src/sessions/create-session.ts` to expose serialize.
 
-- [ ] Write the consistency test first:
+- [x] Write the consistency test first:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -758,10 +759,10 @@ test("serializes captured A while later edits reach B", async () => {
 });
 ```
 
-- [ ] Run `bun test tests/serialization.test.ts`; expect missing serialize or
+- [x] Run `bun test tests/serialization.test.ts`; expect missing serialize or
   inconsistent capture timing/bytes. Introduce `serialize` only with this
   functioning path, not a rejected placeholder method.
-- [ ] Add synchronous capture and a cancellable encoding ticket. Wrap guards
+- [x] Add synchronous capture and a cancellable encoding ticket. Wrap guards
   and capture in a synchronous try that returns a rejected promise on failure;
   do not defer capture through `Promise.resolve().then(...)`. Set up ticket/signal
   state before any plugin callback. Pre-aborted signals invoke no capture.
@@ -781,7 +782,7 @@ serialize(options):
   recheck ticket/session; issue frozen result at captured revision
 ```
 
-- [ ] Normalize output with standard sources. Read output properties once,
+- [x] Normalize output with standard sources. Read output properties once,
   validate shape and source options, and wrap failures as `SERIALIZATION_FAILED`:
 
 ```ts
@@ -797,17 +798,17 @@ const result: SerializationResult = Object.freeze({ revision, source });
   raw values until their protocol validation is complete, following phase 1's
   result-field fix. Private receipt registration may be added now as data;
   the public acknowledgement method is exercised in Task 8.
-- [ ] Extend scenarios one at a time: concurrent captures preserve independent
+- [x] Extend scenarios one at a time: concurrent captures preserve independent
   revisions; capture while a writer awaits is allowed; serialization while
   read-only is allowed; Uint8Array input and every returned read are independent;
   snapshot cleanup zeroes its original array without corrupting returned bytes;
   output metadata override/defaults and malformed bytes/names are validated.
-- [ ] Add capture exclusivity tests: a change callback cannot call serialize;
+- [x] Add capture exclusivity tests: a change callback cannot call serialize;
   capture cannot reenter commit, edit start, nested capture, policy change, or
   later acknowledgement; reads and disposal remain allowed. A revision observer
   may serialize after a committed change. Capture/encoder/cleanup methods retain
   original receivers, and protocol/accessor fields are read once.
-- [ ] Keep output receipt minting private and after cleanup/success fences.
+- [x] Keep output receipt minting private and after cleanup/success fences.
   Do not change original source metadata, persisted revision, or dirty on success.
   Run focused tests and strict types; continue through Tasks 7-8 before the
   capture/receipt milestone's full check and commit.
@@ -819,7 +820,7 @@ const result: SerializationResult = Object.freeze({ revision, source });
 create `tests/serialization-lifecycle.test.ts`,
 `tests/serialization-failures.test.ts`. Reuse existing lifecycle primitives.
 
-- [ ] Write prompt disposal without waiting for an encoder:
+- [x] Write prompt disposal without waiting for an encoder:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -848,21 +849,21 @@ test("disposes known capture resources without awaiting ignored encoding", async
 });
 ```
 
-- [ ] Run the focused test before extending ticket closure. On session close,
+- [x] Run the focused test before extending ticket closure. On session close,
   invalidate tickets and mark their registered captures session-claimed before
   any later wrapper finalizer can report errors. Share one cached local cleanup
   promise between serializer and session ownership; do not re-run snapshot cleanup.
-- [ ] Add controlled tests for all abort points: before capture, reentrant abort
+- [x] Add controlled tests for all abort points: before capture, reentrant abort
   during capture, queued encoder, pending encoder, and pending known cleanup.
   After a fulfilled serialize, later caller abort cannot affect its output,
   session, or another ticket. Read-only revocation cancels edits but not encoders.
   Each primary retains its original reason and session/source/plugin identity.
-- [ ] Add malformed captures: null, array, missing/noncallable encoder,
+- [x] Add malformed captures: null, array, missing/noncallable encoder,
   invalid cleanup, getters throwing null, promises and custom thenables. A valid
   captured cleanup still runs if another field is invalid. An async capture
   rejects immediately; its eventual rejection is observed, and any late returned
   snapshot is disposed once with cleanup errors sent to the diagnostic sink.
-- [ ] Implement bounded cleanup/diagnostic ownership using the private ticket
+- [x] Implement bounded cleanup/diagnostic ownership using the private ticket
   flags specified earlier. Before raising a secondary diagnostic, unregister
   session cleanup and check the session-claimed flag. Preserve `CANCELLED` or
   `SERIALIZATION_FAILED` over cleanup errors. Successful encoding + failed cleanup
@@ -880,7 +881,7 @@ serializer-owned failure:
   if primary succeeded: reject cleanup error directly
 ```
 
-- [ ] Verify these independent cleanup scenarios:
+- [x] Verify these independent cleanup scenarios:
 
 | Scenario | Required outcome |
 | --- | --- |
@@ -893,7 +894,7 @@ serializer-owned failure:
 | Cleanup callback initiates disposal reentrantly without awaiting its owner | cached session promise, no wait on the unresolved encoder |
 | Completed capture followed by later session disposal | no retained registration, cleanup still once |
 
-- [ ] Re-run phase 1 cleanup tests and Task 4 writer races. Run strict types and
+- [x] Re-run phase 1 cleanup tests and Task 4 writer races. Run strict types and
   proceed to Task 8's capture/receipt milestone. Keep cleanup ownership and
   acknowledgements together rather than committing a half-owned resource boundary.
 
@@ -908,7 +909,7 @@ serializer-owned failure:
 complete receipt registry in `src/serialization/create-serialization.ts` and
 acknowledgement in the editing controller; create `tests/persistence.test.ts`.
 
-- [ ] Write a storage-order test with a real in-memory host destination:
+- [x] Write a storage-order test with a real in-memory host destination:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -942,9 +943,9 @@ test("an older write finishing last makes the newer document dirty again", async
 });
 ```
 
-- [ ] Run `bun test tests/persistence.test.ts`; expect missing acknowledgement
+- [x] Run `bun test tests/persistence.test.ts`; expect missing acknowledgement
   or incorrect Math.max/dirty behavior.
-- [ ] Store issued exact result identities in a private
+- [x] Store issued exact result identities in a private
   `WeakMap<SerializationResult, Revision>`. Check live/support/apply-capture guards
   before ownership lookup. Do not trust a caller-provided `.revision` or a
   structural cast; use the registry's canonical revision. Never create a receipt
@@ -958,19 +959,19 @@ state.persistedRevision = revision;
 // Do not replace with a maximum-revision calculation.
 ```
 
-- [ ] Test exact receipt acceptance and each rejection separately: another
+- [x] Test exact receipt acceptance and each rejection separately: another
   session/core's receipt, a spread copy, JSON copy, fabricated object, null and
   primitive JavaScript input. Rejections are `INVALID_PERSISTENCE`, leave all
   state unchanged, and do not invoke any model or storage callback.
-- [ ] Test serialization alone remains dirty; failed/rejected host writes leave
+- [x] Test serialization alone remains dirty; failed/rejected host writes leave
   persisted state unchanged; ack A after edit B keeps B dirty; read-only can ack;
   same revision ack is a no-op; an exact receipt can be reused after its bytes
   are written again; before-ready/unsupported/disposed precedence is preserved.
-- [ ] Add guard/reentry tests: ack during applying/capture is EDIT_BUSY, during
+- [x] Add guard/reentry tests: ack during applying/capture is EDIT_BUSY, during
   a committed revision notification it is allowed. Ack observer may dispose;
   no later ready snapshot can restore the session. It must not change revision,
   current model, original source metadata, busy writer, or encoding ticket.
-- [ ] Run focused persistence, editing and serialization tests, strict types,
+- [x] Run focused persistence, editing and serialization tests, strict types,
   then `bun run check`; commit
   `feat(serialization): own captures and persistence receipts` for Tasks 6-8,
   explaining cancellation, cleanup ownership and authoritative-write ordering.
@@ -981,7 +982,7 @@ state.persistedRevision = revision;
 `tests/package-consumer/consumer.ts`; create `tests/editing-integration.test.ts`.
 Existing build/verification scripts and manifest exports remain authoritative.
 
-- [ ] Add strict type assertions for the actual integrated methods:
+- [x] Add strict type assertions for the actual integrated methods:
 
 ```ts
 import type { DocumentSession, SerializationResult } from "../src/index.ts";
@@ -1005,7 +1006,7 @@ export function checkManagedEditing(
 }
 ```
 
-- [ ] Add this independent packed-consumer block after the existing phase 1
+- [x] Add this independent packed-consumer block after the existing phase 1
   consumer checks, reusing its `assert` helper. Do not import source paths or test
   fixtures; the existing verifier copies this file into a fresh extracted package:
 
@@ -1064,26 +1065,26 @@ try {
 } finally { await editingCore.dispose(); }
 ```
 
-- [ ] Before implementation of a missing contract, the corresponding public test
+- [x] Before implementation of a missing contract, the corresponding public test
   must fail meaningfully. At this late integration stage earlier slices should
   already make these assertions pass; retain them as independent compatibility
   evidence rather than changing working code to manufacture a failure.
-- [ ] Add an integration test opening two documents with the same text plugin
+- [x] Add an integration test opening two documents with the same text plugin
   and a second core. Change/revoke/dispose one while another edits and encodes.
   Assert model, revision, policy, busy state, receipts, cancellation signals and
   core membership remain independent. An exact result from one document never
   acknowledges another even when both expose revision `"1"`.
-- [ ] Check every error from async work, callback/getter/iterator, output
+- [x] Check every error from async work, callback/getter/iterator, output
   normalization and cleanup has the correct category, context and original
   cause. Confirm source metadata does not change on output rename or persistence.
   Exercise all new methods before ready and after disposal using retained handles.
-- [ ] Run `bun run check`,
+- [x] Run `bun run check`,
   `bun node_modules/typescript/bin/tsc -p tsconfig.json --noEmit`,
   `bun run test:package`, `bun pm pack --dry-run`, and `bun run jsr:check`.
   Expected: all exit 0; packed DOM and Node-only consumers execute in Node,
   source line/function coverage remains 100%, root/SDK share the error class.
   No new manifest export or dependency should be necessary.
-- [ ] Commit `test(editing): verify portable public integration` with actual
+- [x] Commit `test(editing): verify portable public integration` with actual
   runtime/type/package evidence in its detailed body.
 
 ## Task 10: Authoring guidance, migration, review, and acceptance
@@ -1095,11 +1096,11 @@ try {
 `GLOSSARY.md` only if domain terminology genuinely changes. Update this plan's
 progress/evidence while executing; do not mark unimplemented steps complete.
 
-- [ ] Document plain JS and TS plugins using public root/SDK imports, retaining
+- [x] Document plain JS and TS plugins using public root/SDK imports, retaining
   a viewer-only example. Include async preparation with several accepted changes,
   partial failure/cancellation, no automatic rollback, stale-context denial,
   per-session read-only defaults/overrides, and capability lifetime rules.
-- [ ] Include an autosave building block that captures from a revision observer
+- [x] Include an autosave building block that captures from a revision observer
   and delegates scheduling/storage to the host, without implementing an autosave
   service in core. Show successful-write acknowledgement in a try/finally lifecycle:
 
@@ -1114,20 +1115,20 @@ session.markPersisted(output);
   revisions are opaque strings, and a serialized/cloned receipt is not trusted.
   A failed write must skip acknowledgement; the host must sequence conflicting
   writes or acknowledge authoritative commit order. Read-only can still export.
-- [ ] Document immutable capture expectations, once-only cleanup, output lifetime,
+- [x] Document immutable capture expectations, once-only cleanup, output lifetime,
   rejected async captures, unsafe async atomic callbacks, and the cleanup
   self-dependency rule. Distinguish initialization/caches/view state from edits.
   Operation/serialization failures remain ready and do not replace load failures.
-- [ ] Update AGENTS/current architecture only after the API exists. Keep optional
+- [x] Update AGENTS/current architecture only after the API exists. Keep optional
   UI, format plugins, public test kit, undo/redo, collaboration and registry
   publication outside this phase. Explain source metadata staying original and
   the optional apiVersion 1 extension; actual package release versioning remains
   a separate decision based on publication history.
-- [ ] Execute guide JS/TS examples through public source counterparts and compile
+- [x] Execute guide JS/TS examples through public source counterparts and compile
   them using strict types. Public examples may not import internal controllers,
   test fixtures, or a nonexistent `/testing` subpath. These runtime examples are
   verified only after implementation, not as evidence while writing this plan.
-- [ ] Perform the following final acceptance commands and inspect every exit:
+- [x] Perform the following final acceptance commands and inspect every exit:
 
 ```sh
 bun install --frozen-lockfile
@@ -1144,11 +1145,11 @@ git diff --check
   source function: coverage must exit nonzero; remove it and rerun the clean
   suite. Do not change exclusions/thresholds, commit the probe, or claim branch
   coverage. Do not publish any registry package.
-- [ ] Request independent review against the approved design and this plan under
+- [x] Request independent review against the approved design and this plan under
   the repository's review skill at implementation time. Provide a precise change
   range and the cancellation/cleanup/persistence invariants, not chat history.
   Convert concrete findings into public red/green regressions; re-review fixes.
-- [ ] Commit `docs(editing): document editing and persistence lifecycle` with
+- [x] Commit `docs(editing): document editing and persistence lifecycle` with
   validation results. Integrate the verified feature into `master` and push only
   under the user's existing instructions. Verify clean status, equal local and
   remote master identities, and keep registry publication separate.
@@ -1195,3 +1196,38 @@ This checks example/type consistency, not future runtime behavior; those future
 tests were not executed. Local documentation links resolve, unresolved-marker
 and whitespace checks pass. The unchanged phase 1 runtime still passes
 `bun run check`: 98 tests, 100% line/function coverage, lint, strict types and build.
+
+## Implementation acceptance (2026-10-20)
+
+All ten tasks are implemented and reviewed. Shared contracts are committed in
+`b1023db`. Tasks 2-8 were verified at the policy, writer and capture milestones,
+then consolidated in `7ec0bc5` so the session composition and resource ownership
+ship together. This replaces the suggested separate policy/writer/capture commit
+boundaries above. Public integration is committed in `57be5d3`.
+
+Independent writer and capture reviews exercised cancellation, stale contexts,
+reentrant getters, first-outcome settlement, late captures, blocked LIFO cleanup
+and exact receipts. Concrete findings received public failing regressions and
+fixes; follow-up review found no remaining must-fix issue. No new dependency,
+package subpath, renderer, plugin repository, registry publication or version
+change was introduced. Domain terminology remains unchanged.
+
+Acceptance evidence:
+
+- Frozen install: 12 installs checked across 39 packages, no lockfile changes.
+- `bun run check`: 196 tests pass, 549 assertions, 100% source line/function
+  coverage, lint, strict build types and ESM/declaration build pass.
+- Full development `tsc -p tsconfig.json --noEmit`: passes.
+- Actual extracted npm archive: strict DOM and Node-only consumers typecheck
+  and run in Node, including editable plugin and persistence flow.
+- npm pack dry run and JSR publish dry run: pass; nothing published.
+- Eight extracted TS guide modules compile strictly; public JS/TS examples
+  execute, including partial edit failure and immutable observer captures.
+- Coverage gate rejects a temporary uncalled source function with exit 1; the
+  probe was removed and the clean full check rerun successfully. Thresholds
+  and exclusions are unchanged. Branch coverage is not claimed.
+- `git diff --check`: passes. Documentation records storage ordering and the
+  cleanup self-dependency rule.
+
+Integration target is the authorized `master` branch with a normal fast-forward
+and push; local/remote identities are checked after integration.

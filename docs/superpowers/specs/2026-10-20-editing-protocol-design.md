@@ -1,8 +1,9 @@
 # Editing, revisions, and persistence protocol
 
-Status: design approved by the user on 2026-10-20; not an implemented API.
+Status: design approved by the user on 2026-10-20; the optional editing protocol
+is implemented. Final acceptance and review are tracked in the linked plan.
 The [implementation plan](../plans/2026-10-20-editing-protocol-phase-2.md)
-defines the execution sequence. The phase 1 runtime remains unchanged.
+records the execution sequence, extending the phase 1 managed runtime.
 Async edit operations are a confirmed requirement.
 
 Related documents: [runtime architecture](2026-10-19-core-runtime-proposal.md),
@@ -80,9 +81,9 @@ Invariants:
    using a receipt issued by that same live session.
 9. Disposed remains terminal across edits, captures, callbacks, and late results.
 
-## Proposed public contracts
+## Public contracts
 
-These are declaration contracts, not production implementations. Their types
+These declaration contracts describe the public protocol. Their types
 use the existing `MaybePromise`, `Cleanup`, and `ReadableSource` contracts.
 Public declarations need JSDoc and explicit return types during implementation.
 
@@ -435,7 +436,7 @@ after disposal, but acknowledging it on a disposed session is `SESSION_CLOSED`.
 
 ## Error contract and state precedence
 
-Add these codes to `ErrorCode`; preserve all existing codes and error causes:
+These codes extend `ErrorCode`; existing codes and error causes are preserved:
 
 | Code | Meaning |
 | --- | --- |
@@ -469,7 +470,7 @@ attempt to publish editing state, an output receipt, or a cleanup notification.
 
 ## Example of plugin integration
 
-This is a future API example, not a format implementation to ship in core:
+This fixture demonstrates the public API; format implementations ship outside core:
 
 ```ts
 import {
@@ -566,7 +567,7 @@ would use `edit` too and create a new revision rather than decrement revision.
 | `src/sessions/create-session.ts` | Compose controllers with load, public handles, snapshots and disposal |
 | `src/sessions/state.ts` | Reuse/revise the existing stable observable store without a second listener system |
 | `src/lifecycle/*` | Reuse safe cancellation, once-only resources and diagnostic ownership |
-| Existing type/core/export files | Thread options and expose the proposed contracts consistently |
+| Existing type/core/export files | Thread options and expose the public contracts consistently |
 
 Editing and serialization do not import core composition or public barrels.
 Prefer an explicit small private coordination interface between controllers:
@@ -576,10 +577,10 @@ private resource/receipt helpers only when their own behavior warrants it.
 Keep session orchestration focused rather than appending all logic to its load
 function. Source reading and deterministic plugin selection stay phase 1 rules.
 
-The next implementation plan must define the private coordination contract and
-ordered integration slices completely before code changes, including how active
-capture cleanup is claimed once by disposal versus serialization. This design
-does not authorize placeholder exports or an incomplete editing controller.
+The linked implementation plan defines the private coordination contract and
+ordered integration slices, including how active capture cleanup is claimed once
+by disposal versus serialization. This design does not authorize placeholder
+exports or an incomplete editing controller.
 
 ## Acceptance scenarios
 
@@ -618,12 +619,13 @@ consumers. No Bun/Node/framework/DOM-renderer imports or CSS enter public code.
 
 The approved design includes async partial-progress semantics, default
 read-only policy, and storage acknowledgement ordering. Follow the linked
-implementation plan before changing runtime code. Package version stays unchanged
-while planning;
+implementation plan before changing runtime code. This phase keeps the package
+version unchanged;
 determine release versioning against actual published history before releasing.
 The optional editing result extends apiVersion 1; existing definitions remain
 valid. A plugin using this new SDK must declare an appropriate core package
 version when published; apiVersion alone is not feature negotiation.
 
-This document adds no implementation, format repository, registry publication,
-UI, or test-kit export. Implementation planning and execution are separate steps.
+Approval of this design did not itself implement the protocol. Implementation
+evidence belongs in the linked plan. Format repositories, registry publication,
+UI, and a public test-kit export remain outside this phase.

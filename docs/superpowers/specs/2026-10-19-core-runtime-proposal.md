@@ -1,7 +1,7 @@
 # Core runtime and plugin SDK architecture
 
-Status: the phase 1 managed runtime and minimal authoring SDK are implemented.
-Editing, UI, formats, adapters, and the public test kit remain roadmap items.
+Status: the managed runtime, authoring SDK, and optional editing protocol are
+implemented. UI, formats, adapters, and the public test kit remain roadmap items.
 The [phase 1 plan](../plans/2026-10-19-core-runtime-phase-1.md) records the
 contract and acceptance scenarios. See [plugin authoring](../../plugin-authoring.md)
 and [migration](../../migration-managed-sessions.md) for current usage.
@@ -13,8 +13,8 @@ and [migration](../../migration-managed-sessions.md) for current usage.
 - Portable public code uses standard Web APIs without Bun, Node, DOM, framework,
   or CSS requirements. Development remains Bun-first with no runtime dependencies.
 - npm ESM/declarations and JSR TypeScript sources expose the same root and SDK API.
-- Core stays headless. Optional editing is a product requirement for a future
-  protocol, alongside the existing customization and style-isolation contract.
+- Core stays headless. Optional editing coordinates plugin-owned models alongside
+  the existing customization and style-isolation contract.
 - Plugin authors use public tools and contracts instead of internal paths or
   their own competing lifecycle infrastructure.
 
@@ -28,8 +28,8 @@ core would broaden dependencies and weaken isolation.
 
 | Entry point | Audience | Implemented contents |
 | --- | --- | --- |
-| `@omniview/core` | Hosts and renderer authors | Core/session handles, snapshots, sources, errors, consumer contracts |
-| `@omniview/core/sdk` | Plugin authors | Definition/context contracts, typed capability helpers, errors |
+| `@omniview/core` | Hosts and renderer authors | Core/session handles, editing snapshots, serialized output receipts, sources, errors |
+| `@omniview/core/sdk` | Plugin authors | Definitions, edit/capture/encoder contexts, typed capability helpers, errors |
 
 Both registries expose both entry points at the same package version. npm builds
 both together with shared ESM chunks and declarations; JSR exports the source
@@ -56,8 +56,11 @@ subscriptions and capabilities. A failed convenience open disposes its temporary
 session, while an explicitly created failed session remains inspectable and
 tracked until disposed. Source identity never changes within a session.
 
-Tabs, active documents, pane selection, and layout belong to hosts/renderers.
-Revisions and dirty state are not part of the current session model.
+Ready snapshots include a frozen optional-editing state. Supported sessions
+expose read-only policy, writer busy state, current and persisted revisions,
+and dirty equality. Revision/dirty changes and accepted policy changes publish
+through the same observable store. Tabs, active documents, pane selection, and
+layout belong to hosts/renderers.
 
 ## Responsibilities and module direction
 
@@ -68,14 +71,18 @@ Revisions and dirty state are not part of the current session model.
 | Plugins | Definitions, validation, deterministic selection | Mutable document state shared across sessions |
 | Lifecycle | Abort races, resource scopes, safe diagnostics | Session state or core composition |
 | Sessions | State, subscriptions, capabilities, terminal lifetime | Format-specific AST or markup |
+| Editing | Host policy, writer lifetime, guarded commits, revision/dirty state | Plugin model, rollback, universal history |
+| Serialization | Capture ownership, encoding lifetime, output copies, exact receipts | Storage, write scheduling, destination selection |
 | Capabilities | Typed optional protocols and discovery | One mandatory document model |
 | SDK | Supported authoring helpers and contracts | A second runtime, parsers, UI |
 
 Dependencies flow from core composition to sessions, then sources, plugins,
 capabilities, and lifecycle primitives. Shared cancellation, resources, and
 reporting live below session orchestration, so sources/plugins never import
-sessions. Lower layers never import core or public barrels. SDK barrels expose
-supported contracts without runtime code depending on the SDK entry point.
+sessions. Sessions compose editing and serialization controllers; serialization
+uses a narrow private editing interface without accessing a plugin model.
+Lower layers never import core or public barrels. SDK barrels expose supported
+contracts without runtime code depending on the SDK entry point.
 
 ```text
 src/
@@ -100,6 +107,14 @@ src/
     types.ts                   managed handle and snapshots
     create-session.ts          document lifetime orchestration
     state.ts                   stable snapshots and subscriptions
+  editing/
+    types.ts                   operation, mutation, revision and state contracts
+    state.ts                   cached editing state and consistency guards
+    create-editing.ts          policy, async writer and synchronous commits
+  serialization/
+    types.ts                   capture, encoder, output and receipt contracts
+    capture.ts                 synchronous capture validation and late cleanup
+    create-serialization.ts    encoding lifetime, capture ownership and receipts
   capabilities/
     types.ts                   typed keys and entries
     define-capability.ts       SDK key/entry helpers
@@ -108,8 +123,8 @@ src/
     index.ts                   plugin-author public exports
 ```
 
-Create future modules only when their behavior exists. There are no empty
-editing or testing placeholders and no generic utilities/services buckets.
+Create future modules only when their behavior exists. There are no testing
+placeholders and no generic utilities/services buckets.
 
 ## Sources and plugin selection
 
@@ -126,8 +141,9 @@ An explicit `pluginId` bypasses every probe. Detection/open failures preserve
 cause and contextual identity instead of silently falling back to another
 plugin. Nonboolean probes and malformed results fail validation.
 
-`open` receives source, session ID, abort signal, and `onDispose`; it returns
-optional capability entries and cleanup. It does not return the managed handle.
+`open` receives source, session ID, abort signal, `onDispose`, and `edit`; it
+returns optional capability entries, cleanup, and `editing.capture`. The editing
+definition is an optional apiVersion 1 extension. It does not return the managed handle.
 Author-specific configuration uses a typed factory closure. `definePlugin`
 preserves inference/author metadata; `defineCapability` and `provideCapability`
 connect namespaced keys to typed values without prescribing a universal AST.
@@ -177,26 +193,48 @@ instance-scoped, and namespaced, including portal roots. Follow the
 
 ## Editing and saving
 
-The approved [phase 2 design](2026-10-20-editing-protocol-design.md) specifies
-async operations, guarded changes, revisions, captures, and persistence receipts.
-Its [implementation plan](../plans/2026-10-20-editing-protocol-phase-2.md) is ready;
-this is not an implemented API.
+The [phase 2 design](2026-10-20-editing-protocol-design.md) defines async edit
+operations, guarded changes, revisions, immutable captures, and persistence
+receipts. The [implementation plan](../plans/2026-10-20-editing-protocol-phase-2.md)
+records its implementation and acceptance sequence. There is no `mode` or `save()` API.
 
-Future protocol: no editing policy, mode/save, revision, dirty state,
-serialization, or persistence acknowledgement is implemented in this phase.
-Optional editing remains a product requirement.
+Plugin support and host permission are independent. Viewer-only definitions
+remain valid and ready with `editing.supported: false`. Editable sessions default
+to read-only; a session option overrides the snapshotted core default.
+`setReadOnly` changes ready-session permission. Capability mutations call
+`PluginContext.edit`; core checks policy at operation start and every `commit`,
+including retained/custom UI calls. Revoking permission promptly cancels the
+active writer without cancelling encoders.
 
-Distinguish plugin editing support from host permission for this session.
-Read-only policy must be enforced through capability/command checks even when
-a host uses a custom toolbar. Each edit advances a revision and dirty state.
-Serialization captures bytes for a revision; successful serialization alone
-must not mark persistence successful. The host persists the bytes and then
-acknowledges that revision. Failed uploads leave it dirty, and edits made while
-an older save is in flight remain dirty after that older revision is persisted.
+Each session admits one async writer and rejects a second with `EDIT_BUSY`.
+Work may await preparation and make several synchronous `commit` calls.
+`changed: true` advances one opaque string revision; `changed: false` does not.
+Initialization establishes revision `"0"` directly. Failure or cancellation
+preserves accepted changes, and stale contexts cannot commit again. Throwing or
+invalid commit results conservatively advance once because core cannot inspect
+the opaque model. The plugin must maintain model validity; core supplies no rollback.
 
-Plugins own format snapshots and serialization; no common editable AST or
-universal history engine is assumed. Hosts own persistence and unsaved-change
-UI. Core never opens confirmation dialogs or chooses storage on their behalf.
+Serialization captures the revision and immutable plugin state synchronously,
+then allows async encoding and concurrent later edits. Captures/atomic changes
+use consistency guards; a committed revision subscriber may capture for autosave.
+An async capture is invalid. Each capture cleanup has one owner across encoding,
+cancellation, and disposal; cleanup must not await an owner disposal promise
+that includes itself. Output owns its bytes and remains readable after disposal.
+Original session source metadata never changes because output is renamed or saved.
+
+Serialization alone does not change persistence. After successfully writing the
+authoritative destination, the host passes the exact same-session result to
+`markPersisted`. Copies, invented values, and foreign receipts are rejected.
+Dirty is revision inequality, not numeric revision ordering. Acknowledging A
+after editing B keeps B dirty; if A actually overwrites newer stored bytes,
+acknowledging A makes B dirty again. Hosts must sequence conflicting writes or
+acknowledge authoritative storage commit order. Failed writes skip acknowledgement.
+Read-only permits serialization/acknowledgement; closed sessions reject both.
+
+Plugins own models, immutable captures, encoding, and format-specific APIs.
+Hosts own storage, autosave scheduling, write ordering, and unsaved-change UI.
+Core never opens confirmation dialogs or chooses storage. UI, a common editable
+AST, undo/redo, automatic rollback, and collaboration remain outside this phase.
 
 ## Portable test kit direction
 
@@ -207,15 +245,15 @@ independently of this test kit.
 
 Shared checks should cover registration, detection, opening, capabilities,
 cancellation, cleanup, and independent concurrent sessions. Editing checks are
-opt-in once that protocol exists. Format content correctness remains the plugin
+opt-in for plugins that implement the protocol. Format content correctness remains the plugin
 author's responsibility; generic checks cannot validate every parser/renderer.
 
 ## Development sequence and review scenarios
 
 1. Protocol/source boundaries and managed runtime: implemented in phase 1,
    including the minimal SDK, cancellation, cleanup, and observable state.
-2. Editing protocol: permission, revisions, dirty tracking, serialization, and
-   persistence acknowledgement with failed/in-flight-save tests.
+2. Editing protocol: implemented optional permission, guarded async operations,
+   revisions, dirty tracking, captures, and exact persistence receipts.
 3. Portable test kit: real public conformance helpers through a future subpath.
 4. External integration proof: a real format plugin in its own package, a
    viewer-only fixture, and a plain JavaScript host before protocol stabilization.
@@ -224,9 +262,9 @@ author's responsibility; generic checks cannot validate every parser/renderer.
 
 Lifecycle acceptance exercises two documents using one plugin, two cores,
 terminal load failure/retry behavior, abort/dispose races, reentrant observers,
-late results, cleanup failure precedence, and independent membership. Future
-editing acceptance must prove that read-only commands cannot edit and that
-persisting revision A cannot mark newer revision B clean.
+late results, cleanup failure precedence, and independent membership. Editing
+acceptance includes denied read-only mutations, partial async failure, stale
+contexts, capture cleanup races, and persistence A leaving newer revision B dirty.
 
 ## Compatibility and exclusions
 

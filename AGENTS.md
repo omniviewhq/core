@@ -16,10 +16,19 @@ belongs in its own repository. Read README.md and the architecture document firs
   Plugins declare apiVersion: 1 and publish session-scoped capabilities.
   Await session/core dispose(); propagate plugin failures and report secondary
   cleanup failures. The host owns persistence.
-- Optional editing remains a product requirement, not a current mode/save API.
-  Follow the editing phase in
-  docs/superpowers/specs/2026-10-19-core-runtime-proposal.md before adding
-  editing, revisions, serialization, or persistence acknowledgement.
+- Optional editing extends apiVersion: 1 through PluginDocument.editing.
+  Follow docs/superpowers/specs/2026-10-20-editing-protocol-design.md:
+  PluginContext.edit may await work; each model change uses a synchronous commit.
+  Default readOnly is true; cancellation/failure preserves accepted revisions
+  with no rollback. Capture immutable state synchronously; encode asynchronously.
+  The host acknowledges successful authoritative writes with the exact same-session
+  SerializationResult, in storage commit order. Never infer persistence from
+  serialization, clone a receipt, or replace the original source metadata.
+- Capture cleanup is owned once across encoding and session disposal. Cleanup
+  may initiate owner disposal without awaiting it, but must never return or await
+  an owner disposal promise that includes that same cleanup.
+- Keep UI, format implementations, adapters, undo/redo, collaboration, autosave
+  scheduling, and the public test kit outside this phase. There is no mode/save API.
 - Keep npm and JSR names/versions synchronized. npm ships dist; JSR ships src.
 - Add behavior tests before implementation. Keep source line and function
   coverage at 100%; test failure paths, not just happy paths. Do not exclude
