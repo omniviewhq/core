@@ -241,6 +241,7 @@ Repository preparation does not authorize publication or git push.
 - [Phase 1 implementation plan](docs/superpowers/plans/2026-10-19-core-runtime-phase-1.md)
 - [Approved editing protocol design](docs/superpowers/specs/2026-10-20-editing-protocol-design.md)
 - [Phase 2 implementation plan](docs/superpowers/plans/2026-10-20-editing-protocol-phase-2.md)
+- [Proposed portable plugin test kit](docs/superpowers/specs/2026-10-20-portable-plugin-test-kit-design.md)
 - [Installed AI skills](docs/ai-skills.md)
 
 MIT licensed.

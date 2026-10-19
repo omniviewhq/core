@@ -238,6 +238,10 @@ AST, undo/redo, automatic rollback, and collaboration remain outside this phase.
 
 ## Portable test kit direction
 
+The [phase 3 design](2026-10-20-portable-plugin-test-kit-design.md) proposes named
+portable cases, fresh author fixtures, explicit omissions, and optional async
+controls. This API is specified for review and is not implemented yet.
+
 Future `@omniview/core/testing` should exercise public plugin behavior with
 supplied source fixtures and a session factory. It must not import bun:test,
 Node, DOM, or a particular test runner. The minimal SDK is already implemented
