@@ -10,9 +10,16 @@ belongs in its own repository. Read README.md and the architecture document firs
 - Public library code must work without Bun, Node, or any framework. Use standard
   Web APIs; do not import bun:*, node:*, React, or Vue from src/.
 - Use TypeScript with explicit public types, strict checks, and JSR-compatible
-  relative imports. Export the plugin contract through src/index.ts.
-- Editing is optional per session. Narrow mode before using save(). The host
-  owns persistence and calls dispose(); core must propagate plugin failures.
+  relative imports. Applications use the root entry point; plugin authors use
+  /sdk. Keep both public APIs portable and expose no private paths.
+- The current API uses readable sources and managed DocumentSession handles.
+  Plugins declare apiVersion: 1 and publish session-scoped capabilities.
+  Await session/core dispose(); propagate plugin failures and report secondary
+  cleanup failures. The host owns persistence.
+- Optional editing remains a product requirement, not a current mode/save API.
+  Follow the editing phase in
+  docs/superpowers/specs/2026-10-19-core-runtime-proposal.md before adding
+  editing, revisions, serialization, or persistence acknowledgement.
 - Keep npm and JSR names/versions synchronized. npm ships dist; JSR ships src.
 - Add behavior tests before implementation. Keep source line and function
   coverage at 100%; test failure paths, not just happy paths. Do not exclude

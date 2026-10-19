@@ -913,32 +913,32 @@ if (!result.success) throw new AggregateError(result.logs, "Build failed");
 proposal; add `docs/plugin-authoring.md` and `docs/migration-managed-sessions.md`.
 Keep GLOSSARY terms consistent.
 
-- [ ] Document plain JS and TS examples using only public imports. Include one
+- [x] Document plain JS and TS examples using only public imports. Include one
   viewer-only plugin fixture showing source reading, typed capability lookup,
   onDispose, and host-owned lifecycle. Do not create a production format plugin
   in the core repository.
-- [ ] Explain metadata/range semantics, apiVersion 1, explicit-vs-detected plugin
+- [x] Explain metadata/range semantics, apiVersion 1, explicit-vs-detected plugin
   selection, structured errors, terminal failures, cancellation, error reporting,
   and session-scoped capability lifetimes.
-- [ ] Explain migration from `{ name, data: Blob }` to createSource, from returned
+- [x] Explain migration from `{ name, data: Blob }` to createSource, from returned
   plugin sessions to managed DocumentSession, and from synchronous dispose to
   awaited cleanup. State that editing/save is intentionally a follow-up protocol.
-- [ ] Retire AGENTS instructions describing mode/save as current session API;
+- [x] Retire AGENTS instructions describing mode/save as current session API;
   retain optional editing as the product requirement and link its next phase.
   Update architecture layout to the implemented lifecycle module boundary.
-- [ ] Verify sources have no Bun/Node/framework/DOM imports or styles and zero
+- [x] Verify sources have no Bun/Node/framework/DOM imports or styles and zero
   runtime dependencies. No internal path appears in public authoring examples.
-- [ ] Verify every public export has JSDoc/explicit types and both registries
+- [x] Verify every public export has JSDoc/explicit types and both registries
   expose the implemented root/SDK API only.
-- [ ] Run `bun install --frozen-lockfile`, `bun run check`, `bun run test:package`,
+- [x] Run `bun install --frozen-lockfile`, `bun run check`, `bun run test:package`,
   `bun pm pack --dry-run`, and `bun run jsr:check`. All must exit 0.
-- [ ] Re-prove the full-source coverage gate with a temporary uncalled source
+- [x] Re-prove the full-source coverage gate with a temporary uncalled source
   function, expect nonzero exit, remove the probe, then rerun the clean suite.
   Do not commit the probe or alter coverage exclusions to pass.
-- [ ] Review implementation against the scenario/transition tables. Request
+- [x] Review implementation against the scenario/transition tables. Request
   independent code review under the repository workflow and resolve concrete
   correctness issues before reporting completion.
-- [ ] Commit `docs: document managed core and plugin authoring` with validation
+- [x] Commit `docs: document managed core and plugin authoring` with validation
   details. Commit/push on master only within the user's authorization; no registry
   publication or real plugin/framework repository creation is part of execution.
 
@@ -971,3 +971,9 @@ Controlled-race tests attach a plain promise rejection observer before aborting.
 Bun 1.4.3 expectation chains can drain pending jobs when invoked, so race triggers
 precede the final matcher. A temporary unimported source function made the full
 coverage command exit 1; removing it restored 100% lines/functions.
+Acceptance evidence (2026-10-20): 98 behavior tests / 232 assertions pass;
+production coverage is 100% lines and functions. Strict types, lint, browser ESM
+build, frozen install, actual packed DOM/Node consumers, npm dry-run and JSR
+dry-run pass. Public JS/TS guide examples execute and typecheck. Independent SDK,
+runtime and package reviews completed; all eight lifecycle findings have passing
+regressions and were re-reviewed. No registry publication was performed.

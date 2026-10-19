@@ -1,290 +1,235 @@
-# Core runtime and plugin SDK proposal
+# Core runtime and plugin SDK architecture
 
-Status: architecture and development roadmap. The first runtime slice has a
-[detailed implementation plan](../plans/2026-10-19-core-runtime-phase-1.md)
-with concrete contracts, lifecycle rules, tests, and delivery steps. This
-document describes the wider direction; editing and the public test kit are
-follow-up slices. Runtime source has not yet been changed to this architecture.
-
-## Current foundation and missing responsibilities
-
-The three current source files implement ordered plugin selection, registration
-validation, and a minimal view/edit session union. They do not provide managed
-document lifetimes, cancellation, observable state, capability discovery, dirty
-tracking, or a plugin authoring/testing SDK. Those are substantive architecture
-gaps; the number of files itself is not a quality measure.
-
-The current 14 tests cover the foundation. Their 100% line/function coverage is
-not evidence that the proposed runtime and SDK already exist or are tested.
+Status: the phase 1 managed runtime and minimal authoring SDK are implemented.
+Editing, UI, formats, adapters, and the public test kit remain roadmap items.
+The [phase 1 plan](../plans/2026-10-19-core-runtime-phase-1.md) records the
+contract and acceptance scenarios. See [plugin authoring](../../plugin-authoring.md)
+and [migration](../../migration-managed-sessions.md) for current usage.
 
 ## Product constraints
 
-- One core repository and package: `@omniview/core`; every format plugin and
-  framework adapter has its own repository and package.
-- Framework-independent public code using standard Web APIs, without Bun,
-  Node, DOM, or framework runtime requirements. Development remains Bun-first.
-- npm ESM/declarations and JSR TypeScript sources expose the same public API.
-- A small headless runtime, optional editing, and the existing customization
-  and style-isolation contract apply to every official integration.
-- Plugin authors receive useful public tools and contracts without importing
-  internal source paths or rebuilding lifecycle infrastructure.
+- One package and repository: `@omniview/core` in `omniviewhq/core`. Every format
+  plugin and framework adapter has a separate repository and package.
+- Portable public code uses standard Web APIs without Bun, Node, DOM, framework,
+  or CSS requirements. Development remains Bun-first with no runtime dependencies.
+- npm ESM/declarations and JSR TypeScript sources expose the same root and SDK API.
+- Core stays headless. Optional editing is a product requirement for a future
+  protocol, alongside the existing customization and style-isolation contract.
+- Plugin authors use public tools and contracts instead of internal paths or
+  their own competing lifecycle infrastructure.
 
-## Architectural alternatives
+## Architecture decision
 
-| Approach | Advantages | Costs |
+Runtime and SDK share one package with separate public entry points. This keeps
+protocol versioning aligned while letting hosts and authors import only the
+supported boundary they need. Separate SDK packages would require unnecessary
+release coordination at this stage. Including renderers and format parsers in
+core would broaden dependencies and weaken isolation.
+
+| Entry point | Audience | Implemented contents |
 | --- | --- | --- |
-| Runtime and SDK in one package with separate entry points | Shared protocol/version, simple installation, independently importable tooling | Public export boundaries must be maintained carefully |
-| Runtime and SDK as separate packages/repositories | Independent publishing and release cycles | Compatibility coordination before there is a mature protocol |
-| One broad core including renderers and format helpers | Initially convenient imports | Larger dependency surface, weaker isolation, difficult customization |
+| `@omniview/core` | Hosts and renderer authors | Core/session handles, snapshots, sources, errors, consumer contracts |
+| `@omniview/core/sdk` | Plugin authors | Definition/context contracts, typed capability helpers, errors |
 
-Recommend the first approach. Keep UI and format implementations in their own
-repositories, and expose SDK/test utilities as optional core subpath exports.
+Both registries expose both entry points at the same package version. npm builds
+both together with shared ESM chunks and declarations; JSR exports the source
+graph. Root imports do not load frameworks, UI, styles, or test runners.
+`@omniview/core/testing` is intentionally not exported before it is implemented.
 
 ## Session model
 
-One session owns one document. A core instance can manage multiple independent
-sessions, including two documents using the same plugin. A format plugin's
-reusable definition must not hold one global mutable document model.
+One core snapshots an ordered plugin registry and tracks independent document
+sessions. Each session owns one source and one plugin result. A reusable plugin
+definition keeps per-document mutable state inside `open`, never in one shared
+model. Two sessions using one plugin and two independent cores remain isolated.
 
-Sessions have separate loading state, capabilities, revisions, subscriptions,
-operation cancellation, and resource ownership. The core instance owns the
-registry and tracks its sessions; disposing the core disposes those sessions.
+`createSession(source)` returns a `created` handle for subscription before work
+starts. `load()` publishes `loading` followed by `ready`, `error`, or `cancelled`.
+`open(source)` is the convenience path that awaits readiness. Snapshots and
+source metadata are frozen, and snapshot identity stays stable between changes.
+Subscriptions read the snapshot inside their callbacks. Observer failures do
+not fail the document operation or interrupt the remaining observers.
 
-Tabs, the active document, selection between panes, and split-view layout belong
-to renderers or host applications. The basic one-document integration remains
-short; multi-document UI does not require another document lifecycle model.
+Repeated loads share the first promise. Error/cancelled loads are terminal;
+retry requires a new session. Disposal is terminal from any state and clears
+subscriptions and capabilities. A failed convenience open disposes its temporary
+session, while an explicitly created failed session remains inspectable and
+tracked until disposed. Source identity never changes within a session.
 
-Provide an explicit session-creation path for subscribing before loading starts,
-plus a convenience path for opening and awaiting readiness. A session's source
-identity stays fixed; replacing a document means opening a different session.
-The exact method signatures are part of the first implementation plan.
+Tabs, active documents, pane selection, and layout belong to hosts/renderers.
+Revisions and dirty state are not part of the current session model.
 
-## Responsibility boundaries
+## Responsibilities and module direction
 
-| Module | Owns | Does not own |
+| Layer | Owns | Does not own |
 | --- | --- | --- |
-| Core | Registry composition, session creation/tracking, core disposal | DOM, tabs, format models |
-| Sources | File metadata, readable bytes, range access, source adapters | Application credentials, filesystem/network policy |
-| Plugins | Definitions, registration validation, deterministic resolution | Active document state shared across sessions |
-| Sessions | State transitions, operation lifetimes, notifications, disposal | Format-specific AST or UI markup |
-| Capabilities | Typed protocols for optional operations and discovery | One interface requiring every format to implement every feature |
-| SDK | Plugin authoring helpers, typed context, resource ownership tools | A second competing runtime implementation |
-| Testing | Portable plugin contract checks and test fixtures | A production dependency on bun:test or a particular test framework |
+| Core | Registry composition, sessions, membership, core disposal | DOM, tabs, format models |
+| Sources | Fixed metadata, readable bytes, ranges | Credentials, network/filesystem policy |
+| Plugins | Definitions, validation, deterministic selection | Mutable document state shared across sessions |
+| Lifecycle | Abort races, resource scopes, safe diagnostics | Session state or core composition |
+| Sessions | State, subscriptions, capabilities, terminal lifetime | Format-specific AST or markup |
+| Capabilities | Typed optional protocols and discovery | One mandatory document model |
+| SDK | Supported authoring helpers and contracts | A second runtime, parsers, UI |
 
-Dependencies flow from the core orchestrator toward sessions, plugin protocols,
-and sources. Public SDK entry points re-export supported authoring tools; the
-runtime does not depend on SDK barrels. Testing depends on public contracts,
-and neither the runtime nor root entry point imports the test kit.
-
-## Proposed source layout
+Dependencies flow from core composition to sessions, then sources, plugins,
+capabilities, and lifecycle primitives. Shared cancellation, resources, and
+reporting live below session orchestration, so sources/plugins never import
+sessions. Lower layers never import core or public barrels. SDK barrels expose
+supported contracts without runtime code depending on the SDK entry point.
 
 ```text
 src/
-  index.ts                     application-facing exports
+  index.ts                     host-facing public exports
+  errors.ts                    public error codes, context, causes
   core/
-    create-core.ts             composition and core factory
-    types.ts                   core configuration/public handle
+    create-core.ts             composition, membership, disposal
+    types.ts                   configuration and public core handle
   sources/
-    types.ts                   readable source contract
-    blob-source.ts             Blob/File/byte-backed adapters
+    types.ts                   metadata and readable source contract
+    blob-source.ts             Blob/File/byte-backed source factory
   plugins/
-    types.ts                   public plugin definition/context contracts
-    define-plugin.ts           inference-preserving authoring helper
-    registry.ts                registration and compatibility validation
-    resolve-plugin.ts          deterministic format selection
+    types.ts                   definition, contexts, plugin result
+    define-plugin.ts           inference-preserving SDK helper
+    registry.ts                immutable registration validation
+    resolve-plugin.ts          explicit or sequential async selection
   lifecycle/
-    cancellation.ts            abort races and late results
-    resources.ts               scoped resource cleanup
-    reporting.ts               safe callback/cleanup diagnostics
+    cancellation.ts            abort races and late-result observation
+    resources.ts               asynchronous scoped cleanup
+    reporting.ts               safe observer/cleanup diagnostics
   sessions/
-    types.ts                   public session state and handle
+    types.ts                   managed handle and snapshots
     create-session.ts          document lifetime orchestration
-    state.ts                   snapshots and subscriptions
+    state.ts                   stable snapshots and subscriptions
   capabilities/
-    types.ts                   typed capability keys and discovery
-    editing.ts                 editing/serialization/revision protocol
+    types.ts                   typed keys and entries
+    define-capability.ts       SDK key/entry helpers
+    registry.ts                document capability validation
   sdk/
-    index.ts                   plugin-author public entry point
-  testing/
-    index.ts                   optional portable test-kit entry point
-    plugin-contract.ts         lifecycle/capability conformance checks
-    sources.ts                 in-memory test sources
-  errors.ts                    stable public error codes and causes
+    index.ts                   plugin-author public exports
 ```
 
-Create modules as their behavior is implemented, without empty placeholder
-directories or generic utils/services buckets. Keep feature types next to their
-behavior instead of rebuilding one global `types.ts` collection.
+Create future modules only when their behavior exists. There are no empty
+editing or testing placeholders and no generic utilities/services buckets.
 
-## Public entry points
+## Sources and plugin selection
 
-| Entry point | Audience | Contents |
-| --- | --- | --- |
-| `@omniview/core` | Application and renderer authors | Core/session APIs, public state, source and capability consumer types |
-| `@omniview/core/sdk` | Plugin authors | Plugin definitions, authoring helpers, context, resource and capability tools |
-| `@omniview/core/testing` | Plugin maintainers | Portable contract runner, fixtures, deterministic async-operation controls |
+`createSource` accepts Blob, File, or Uint8Array. Metadata is fixed; byte input
+is copied at construction and each read returns fresh bytes. Reads use safe
+integer half-open bounds `[start, end)` within source size, without clamping.
+Hosts may supply a `ReadableSource` for remote/custom storage. Core performs no
+implicit fetch, filesystem access, authentication, or persistence.
 
-All three belong to this single package and share its version. Both registries
-must expose them; npm builds each runtime entry point with declarations.
-The root import must not load the SDK test kit, a framework, or styles.
+Plugins declare unique nonblank IDs, exactly `apiVersion: 1`, and callable
+`supports`/`open`. Detection may inspect bytes asynchronously. Core awaits each
+probe sequentially in registration order and selects the first true result.
+An explicit `pluginId` bypasses every probe. Detection/open failures preserve
+cause and contextual identity instead of silently falling back to another
+plugin. Nonboolean probes and malformed results fail validation.
 
-## Plugin authoring contract
+`open` receives source, session ID, abort signal, and `onDispose`; it returns
+optional capability entries and cleanup. It does not return the managed handle.
+Author-specific configuration uses a typed factory closure. `definePlugin`
+preserves inference/author metadata; `defineCapability` and `provideCapability`
+connect namespaced keys to typed values without prescribing a universal AST.
 
-The SDK supplies a typed definition helper that preserves inference for plugin
-configuration, its document model, and its capabilities. It must work for both
-TypeScript authors and JavaScript authors using declarations/JSDoc.
+Capability IDs are validated and unique per result. Lookup is keyed by canonical
+ID and available only while ready; missing capabilities return undefined.
+Capability references belong to their session and must not be used after it
+closes. Core cannot revoke a host's retained object references.
 
-A plugin declares a unique identity, protocol compatibility, and supported
-format metadata. Detection may inspect bytes asynchronously. Default selection
-remains deterministic by registration order; the host can explicitly request a
-plugin. A decoding or detection failure is reported with its cause rather than
-silently hidden by trying another plugin after failure.
+## Loading, cancellation, and cleanup
 
-Each session receives its own context: source reader, configuration, abort
-signal, capability publication, state notifications, and cleanup registration.
-Plugin code owns its format model. Text, spreadsheets, PDFs, and video must not
-be forced into one common editable AST.
+Host signals apply to the first load. Pre-aborted loads do not probe, and abort
+during detection/open rejects promptly with `CANCELLED`. The external signal
+is unlinked once load settles: aborting it after readiness does not close the
+session. The plugin context signal is session-owned and aborts on disposal,
+including after readiness. Plugins pass it to source reads and cooperative work.
+Late results cannot restore usable state; late rejections remain observed.
 
-Capabilities expose common protocols while keeping format-specific data typed.
-The initial shared editing protocol does not imply support for search, zoom,
-pagination, annotations, or history. Add shared protocols only when real format
-implementations can validate them. Plugin-specific capabilities can extend the
-contract through namespaced typed keys without changing the core's union types.
+`onDispose` registers independent cleanup callbacks and returns an idempotent
+unregister function. Known callbacks run sequentially in reverse registration
+order, including result cleanup registered last. Every callback is attempted,
+with failures aggregated as contextual `CLEANUP_FAILED`. Disposal promises are
+cached. Disposing the core prevents new sessions immediately and attempts every
+tracked session even if some cleanup fails. Session membership is removed on
+closure regardless of cleanup success.
 
-SDK support includes structured errors, cleanup scopes, source-reading helpers,
-and capability/command types. It must not grow into an unrelated utility library
-or supply parsers for every document format.
+A primary plugin/load failure remains the returned rejection; a secondary
+cleanup failure reaches `onError`. Late cleanup registrations and late plugin
+results are cleaned after closure and cannot delay disposal indefinitely.
+Their cleanup failures also reach `onError`. Observer failures are reported as
+`OBSERVER_FAILED`. The default sink is console.error, with a console fallback
+if a host handler throws. Structured errors expose code, context, and cause.
 
-## Rendering boundary for plugin authors
+## Rendering and customization direction
 
-A plugin can expose a platform-independent view model and document operations
-through its own typed capability. Its renderer consumes that public capability
-rather than accessing private runtime state. The shared core does not prescribe
-one visual representation or one document model for every format.
+A future renderer consumes platform-independent plugin capabilities rather
+than private core state. A plugin repository may publish explicit optional UI
+entry points; importing its headless definition must not load UI, styles, or
+frameworks. Vanilla renderers and adapters compose those entry points outside
+core. Public snapshots already support framework-independent observation;
+shared renderer commands and domain events remain future protocols.
 
-A format plugin repository may publish optional browser/rendering entry points
-alongside its headless definition. Those imports are explicit: importing the
-definition never loads its UI, styles, or framework dependencies. A vanilla
-renderer or framework adapter composes those presentation implementations
-outside the core. This keeps one repository per plugin while allowing both
-fully custom host UI and a convenient default presentation.
-
-## State, commands, and events
-
-Expose stable immutable snapshots and subscriptions that work with plain JS,
-React, Vue, or other consumers. Changes notify observers; unsubscription and
-session disposal stop future callbacks. State belongs to each session.
-
-Commands address a specific session and validate its lifecycle and capabilities.
-Default controls, custom host controls, and framework adapters use those same
-commands. Optional capabilities must be discoverable before UI invokes them.
-Domain events report document lifecycle and operation outcomes; events do not
-replace the current-state snapshot or expose internal mutable objects.
-
-Plugins can define typed namespaced operations. Generic session actions such as
-loading, serialization, and disposal remain consistent across formats. Public
-error codes distinguish unsupported sources/capabilities, invalid plugin
-registration, cancellation, disposed sessions, and plugin execution failures.
-
-## Loading and resource safety
-
-Source adapters initially cover Blob, File, and byte-backed data with named
-metadata and range reads. Hosts can provide a reader for remote or custom
-storage. The core does not fetch URLs or read local paths implicitly; access,
-authentication, and transport policy belong to the host's source adapter.
-
-Loading can be cancelled. Disposing a session aborts its work and makes the
-session terminal. A late plugin result cannot make a disposed session ready;
-resources returned by late results must also be cleaned up.
-
-Resource scopes cover subscriptions, workers, object URLs, and parser resources
-through registered cleanup callbacks without importing DOM APIs into core.
-Cleanup is idempotent, attempts all registered disposals, and reports failures
-without leaving the session usable. One session's failure cannot corrupt another.
+UI must support optional themes, replaceable regions, and fully custom rendering
+through public state, commands, and events. Default CSS stays optional,
+instance-scoped, and namespaced, including portal roots. Follow the
+[customization contract](2026-10-19-customization-design.md).
 
 ## Editing and saving
 
-Distinguish plugin support for editing from the host's permission to edit this
-session. A host can open an editable format in read-only mode. Capability and
-command checks honor that policy; the UI is not the enforcement boundary.
+Future protocol: no editing policy, mode/save, revision, dirty state,
+serialization, or persistence acknowledgement is implemented in this phase.
+Optional editing remains a product requirement.
 
-Document changes advance a revision and update dirty state. Serialization
-produces bytes for an identified revision; it does not itself mark persistence
-successful. The host persists those bytes, then acknowledges the saved revision.
-A failed upload leaves the document dirty. Edits made while serialization or
-persistence is running remain dirty after an older revision is acknowledged.
+Distinguish plugin editing support from host permission for this session.
+Read-only policy must be enforced through capability/command checks even when
+a host uses a custom toolbar. Each edit advances a revision and dirty state.
+Serialization captures bytes for a revision; successful serialization alone
+must not mark persistence successful. The host persists the bytes and then
+acknowledges that revision. Failed uploads leave it dirty, and edits made while
+an older save is in flight remain dirty after that older revision is persisted.
 
-The format plugin owns how a snapshot is captured and serialized. A common
-history/undo implementation is not assumed because format models differ.
-The core must expose enough state for the host to implement unsaved-change
-guards; it never opens a confirmation dialog on the application's behalf.
+Plugins own format snapshots and serialization; no common editable AST or
+universal history engine is assumed. Hosts own persistence and unsaved-change
+UI. Core never opens confirmation dialogs or chooses storage on their behalf.
 
-## Plugin test kit
+## Portable test kit direction
 
-The optional test kit exercises public plugin behavior using supplied source
-fixtures and a session factory. It does not import bun:test, Node, or the DOM;
-plugin maintainers can call it from their chosen test runner.
+Future `@omniview/core/testing` should exercise public plugin behavior with
+supplied source fixtures and a session factory. It must not import bun:test,
+Node, DOM, or a particular test runner. The minimal SDK is already implemented
+independently of this test kit.
 
-Shared checks cover registration, supported/unsupported input, opening,
-capability declarations, serialization where available, cancellation, cleanup,
-and two concurrent sessions with isolated state. Opt-in checks apply only to
-capabilities a plugin implements. Format-specific content correctness remains
-the plugin author's responsibility; generic tests do not claim to validate a
-spreadsheet parser or PDF renderer.
+Shared checks should cover registration, detection, opening, capabilities,
+cancellation, cleanup, and independent concurrent sessions. Editing checks are
+opt-in once that protocol exists. Format content correctness remains the plugin
+author's responsibility; generic checks cannot validate every parser/renderer.
 
-## Development sequence
+## Development sequence and review scenarios
 
-1. **Protocol and source boundaries.** Finalize typed source, plugin, session,
-   error, and capability contracts. Add compile-time consumer/author examples
-   and source adapters. Preserve deterministic registration/resolution tests.
-2. **Managed session runtime.** Implement observable lifecycle, independent
-   sessions, abort propagation, resource scopes, and deterministic cleanup.
-   Cover races and stale results before exposing more public operations.
-3. **Editing protocol.** Add read-only policy, revisions, dirty state,
-   serialization, and persistence acknowledgement. Test failed saves and
-   editing while a save is in flight.
-4. **Authoring SDK and test kit.** Export helpers and reusable conformance checks
-   through explicit subpaths. Keep the optional test kit out of runtime imports.
-5. **External integration proof.** Exercise a real text-plugin consumer in its
-   own repository/package, plus a viewer-only fixture and a minimal plain-JS
-   host. Validate authoring and custom controls before freezing the protocol.
-6. **Release validation.** Verify all public subpaths from a packed npm artifact,
-   matching JSR exports, no Bun/Node/DOM assumptions, isolated concurrent
-   sessions, and 100% source line/function coverage with meaningful tests.
+1. Protocol/source boundaries and managed runtime: implemented in phase 1,
+   including the minimal SDK, cancellation, cleanup, and observable state.
+2. Editing protocol: permission, revisions, dirty tracking, serialization, and
+   persistence acknowledgement with failed/in-flight-save tests.
+3. Portable test kit: real public conformance helpers through a future subpath.
+4. External integration proof: a real format plugin in its own package, a
+   viewer-only fixture, and a plain JavaScript host before protocol stabilization.
+5. Release validation: actual packed npm consumers, matching JSR source exports,
+   portability, isolated sessions, and full-source line/function coverage.
 
-Each stage gets its own detailed red/green implementation plan and semantic
-commits. The source tree is introduced by those stages, not by a cosmetic
-all-at-once file shuffle.
-
-## First implementation slice
-
-The first implementation plan should cover stages 1 and 2: public source/plugin
-contracts, deterministic resolution, managed sessions, subscriptions, abort,
-and cleanup. It produces a useful runtime for viewer-only plugins and establishes
-the boundaries needed by the editing protocol. Editing semantics and the full
-test kit then receive focused follow-up plans rather than one oversized plan.
-
-## Review scenarios
-
-- Open two files with the same plugin; editing or disposing one does not change
-  the other's model, subscriptions, or resources.
-- Cancel loading; a plugin that finishes late cannot publish usable state and
-  its resources are disposed.
-- Load a broken file; the original plugin error and source/session context are
-  available to the host, without silently switching to another decoder.
-- Open an editable format under a read-only policy; editing commands cannot
-  execute through a custom toolbar or a framework adapter.
-- Start saving revision A, edit to revision B, then persist A; B remains dirty.
-- Build a plugin in a separate package using only sdk/testing public imports;
-  it does not rely on internal source paths or the core's private test fixtures.
+Lifecycle acceptance exercises two documents using one plugin, two cores,
+terminal load failure/retry behavior, abort/dispose races, reentrant observers,
+late results, cleanup failure precedence, and independent membership. Future
+editing acceptance must prove that read-only commands cannot edit and that
+persisting revision A cannot mark newer revision B clean.
 
 ## Compatibility and exclusions
 
-The foundation API is explicitly experimental. This proposal requires changes
-to its session ownership and richer contracts; the implementation plan must
-document those changes instead of layering incompatible meanings onto save().
+The API remains experimental. Managed sessions replaced the old view/edit union;
+the migration guide records the break without redefining save(). Determine
+release versioning against actual publication history before release.
 
-No format implementation, default UI, CSS system, framework adapter, plugin
-marketplace, arbitrary dependency graph, collaboration engine, universal
-document AST, or format-independent undo engine is included in this slice.
-No new runtime dependency is proposed.
+No default UI, CSS system, format parser, framework adapter, marketplace,
+arbitrary dependency graph, collaboration engine, universal document AST,
+format-independent undo engine, or public test kit is implemented in this phase.
+Registry publication and git push remain separate authorized actions.
