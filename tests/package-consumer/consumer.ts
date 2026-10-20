@@ -2,9 +2,14 @@ import { createOmniview, createSource, OmniviewError } from "@omniview/core";
 import {
   defineCapability,
   definePlugin,
+  type EditOptions,
   OmniviewError as PluginError,
   provideCapability,
 } from "@omniview/core/sdk";
+import {
+  createPluginTestSuite,
+  PluginConformanceError,
+} from "@omniview/core/testing";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -95,7 +100,7 @@ try {
 
 const editableText = defineCapability<{
   read(): string;
-  replace(value: string): Promise<void>;
+  replace(value: string, options?: EditOptions): Promise<void>;
 }>("consumer:editable-text");
 const editablePlugin = definePlugin({
   id: "consumer/editable-text",
@@ -107,7 +112,7 @@ const editablePlugin = definePlugin({
       capabilities: [
         provideCapability(editableText, {
           read: () => text,
-          replace: (next) =>
+          replace: (next, options) =>
             edit(async ({ commit }) => {
               await Promise.resolve();
               commit(() => {
@@ -115,7 +120,7 @@ const editablePlugin = definePlugin({
                 text = next;
                 return { changed, value: undefined };
               });
-            }),
+            }, options),
         }),
       ],
       editing: {
@@ -167,4 +172,83 @@ try {
   }
 } finally {
   await editingCore.dispose();
+}
+
+let fixturesCreated = 0;
+let fixturesDisposed = 0;
+const conformance = createPluginTestSuite({
+  id: "consumer.text",
+  createFixture() {
+    fixturesCreated++;
+    return {
+      plugin: editablePlugin,
+      createSource: () => createSource(new Blob(["before"])),
+      dispose() {
+        fixturesDisposed++;
+      },
+    };
+  },
+  verifyDocument({ session }) {
+    assert(
+      session.getCapability(editableText)?.read() === "before",
+      "Expected initial fixture content",
+    );
+  },
+  fingerprint({ session }) {
+    const api = session.getCapability(editableText);
+    assert(api, "Missing editable API");
+    return api.read();
+  },
+  editing: {
+    async change({ session }, options) {
+      const api = session.getCapability(editableText);
+      assert(api, "Missing editable API");
+      await api.replace("after", options);
+    },
+    verifyChanged({ session }) {
+      assert(
+        session.getCapability(editableText)?.read() === "after",
+        "Expected actual changed content",
+      );
+    },
+    async verifyOutput({ output, expectedFingerprint }) {
+      assert(
+        new TextDecoder().decode(await output.source.read()) ===
+          expectedFingerprint,
+        "Expected captured serialized content",
+      );
+    },
+  },
+});
+assert(fixturesCreated === 0, "Discovery must not invoke fixture factories");
+for (const check of conformance.cases) await check.run();
+assert(
+  fixturesCreated === conformance.cases.length &&
+    fixturesDisposed === fixturesCreated,
+  "Each case must own its fixture",
+);
+assert(
+  conformance.omitted.some((item) => item.id.endsWith("/editing/pending")),
+  "Unavailable checks must be reported",
+);
+const broken = createPluginTestSuite({
+  id: "consumer.broken",
+  createFixture: () => ({
+    plugin,
+    createSource: () => createSource(new Blob()),
+  }),
+  verifyDocument() {
+    throw null;
+  },
+  fingerprint: () => "",
+  editing: false,
+});
+try {
+  await broken.cases[0]?.run();
+  throw new Error("Expected conformance failure");
+} catch (error) {
+  assert(
+    error instanceof PluginConformanceError && error.cause === null,
+    "Packed testing entry must preserve error identity and cause",
+  );
 }

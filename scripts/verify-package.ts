@@ -83,6 +83,7 @@ for (const field of [
 for (const [entry, base, source] of [
   [".", "dist/index", "./src/index.ts"],
   ["./sdk", "dist/sdk/index", "./src/sdk/index.ts"],
+  ["./testing", "dist/testing/index", "./src/testing/index.ts"],
 ] as const) {
   const exported = manifest.exports[entry];
   assert(
@@ -102,8 +103,43 @@ for (const [entry, base, source] of [
 }
 assert(
   [...files.keys()].some((path) => /^package\/dist\/chunk-.+\.js$/.test(path)),
-  "The two entry points must ship shared runtime chunks",
+  "The public entry points must ship shared runtime chunks",
 );
+const scanner = new Bun.Transpiler({ loader: "js" });
+for (const entry of ["package/dist/index.js", "package/dist/sdk/index.js"]) {
+  const seen = new Set<string>();
+  const pending = [entry];
+  while (pending.length) {
+    const path = pending.pop();
+    assert(path, "Expected pending runtime module");
+    if (seen.has(path)) continue;
+    seen.add(path);
+    const file = files.get(path);
+    assert(file, `Missing runtime module ${path}`);
+    const code = await file.text();
+    const sourceMap = files.get(`${path}.map`);
+    assert(sourceMap, `Missing source map for ${path}`);
+    const mapping = (await sourceMap.json()) as { sources: string[] };
+    assert(
+      !mapping.sources.some((source) =>
+        /(?:^|\/)testing\//.test(source.replaceAll("\\", "/")),
+      ),
+      `${entry} must not load testing modules`,
+    );
+    for (const dependency of scanner.scan(code).imports) {
+      assert(
+        dependency.path.startsWith("."),
+        "Runtime must not import dependencies",
+      );
+      pending.push(
+        new URL(
+          dependency.path,
+          `https://package.invalid/${path}`,
+        ).pathname.slice(1),
+      );
+    }
+  }
+}
 await archive.extract(resolve(consumer, "unpacked"));
 await mkdir(resolve(consumer, "node_modules/@omniview"), { recursive: true });
 await rename(

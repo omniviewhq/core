@@ -11,6 +11,7 @@ const result = await Bun.build({
   entrypoints: [
     resolve(root, "src/index.ts"),
     resolve(root, "src/sdk/index.ts"),
+    resolve(root, "src/testing/index.ts"),
   ],
   root: resolve(root, "src"),
   outdir: output,
