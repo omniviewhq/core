@@ -200,7 +200,7 @@ test("discovers frozen cases without creating fixtures", () => {
 - [x] Run frozen install, full check, full development TypeScript, packed consumers,
   npm and JSR dry runs, and `git diff --check`; inspect all exits. Re-prove unused
   source fails coverage, remove probe and rerun the clean suite.
-- [ ] Record task evidence here; commit detailed semantic changes, fast-forward
+- [x] Record task evidence here; commit detailed semantic changes, fast-forward
   master, rerun merged acceptance, push normally and verify clean status and
   equal local/remote master identities. Never publish a registry package.
 
@@ -245,4 +245,12 @@ actual packed consumers, npm pack dry run, JSR publish dry run and whitespace
 checks pass. A temporary uncalled source module made coverage fail with exit 1
 and 0% lines/functions; the probe was removed and the clean full check passed.
 No coverage threshold, preload or exclusion was weakened. No registry publish
-was performed. Integration and remote identity are finalized after review.
+was performed.
+
+Integration completed on `master` by fast-forward. Runtime `298b99b`, packaging
+`30eaafb` and authoring `99500f0` were committed with detailed semantic messages.
+The merged result passed full check again (332 tests, 714 assertions, 100%
+source lines/functions) and actual packed-consumer verification. Normal push
+succeeded; local `master`, `origin/master` and the server's master ref all
+matched `99500f0d0aa2f31b01f2115158676e80fdb65b1c`. This final evidence update is
+committed separately; remote identity is checked again after its push.
