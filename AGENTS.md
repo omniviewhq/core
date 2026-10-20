@@ -11,7 +11,8 @@ belongs in its own repository. Read README.md and the architecture document firs
   Web APIs; do not import bun:*, node:*, React, or Vue from src/.
 - Use TypeScript with explicit public types, strict checks, and JSR-compatible
   relative imports. Applications use the root entry point; plugin authors use
-  /sdk. Keep both public APIs portable and expose no private paths.
+  /sdk and plugin tests explicitly use /testing. Keep all three public APIs
+  portable; root/SDK imports must not load testing. Expose no private paths.
 - The current API uses readable sources and managed DocumentSession handles.
   Plugins declare apiVersion: 1 and publish session-scoped capabilities.
   Await session/core dispose(); propagate plugin failures and report secondary
@@ -27,8 +28,15 @@ belongs in its own repository. Read README.md and the architecture document firs
 - Capture cleanup is owned once across encoding and session disposal. Cleanup
   may initiate owner disposal without awaiting it, but must never return or await
   an owner disposal promise that includes that same cleanup.
-- Keep UI, format implementations, adapters, undo/redo, collaboration, autosave
-  scheduling, and the public test kit outside this phase. There is no mode/save API.
+- The portable /testing kit is implemented. Follow
+  docs/superpowers/specs/2026-10-20-portable-plugin-test-kit-design.md: exercise
+  real plugins through public operations, use fresh per-run fixtures, report
+  explicit omissions, and leave runner limits/registration to the host. Author
+  assertions establish content correctness and resource cleanup; generic checks
+  cannot certify a parser or prove absence of leaks.
+- Keep UI, format implementations, adapters, undo/redo, collaboration, and autosave
+  scheduling outside this phase. Next comes an external real text plugin and
+  plain JavaScript host. There is no mode/save API.
 - Keep npm and JSR names/versions synchronized. npm ships dist; JSR ships src.
 - Add behavior tests before implementation. Keep source line and function
   coverage at 100%; test failure paths, not just happy paths. Do not exclude

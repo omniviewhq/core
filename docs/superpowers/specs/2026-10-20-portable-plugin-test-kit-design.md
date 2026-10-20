@@ -1,8 +1,9 @@
 # Portable plugin conformance test kit
 
-Status: proposed phase 3 design, requested on 2026-10-20. The managed runtime
-and editing protocol are implemented; this document specifies the next public
-subpath. It does not implement or export the test kit.
+Status: approved phase 3 contract, implemented on 2026-10-20 as
+`@omniview/core/testing` alongside the managed runtime and editing protocol.
+The historical design-only verification record below describes the earlier
+proposal, before the implementation existed.
 
 Related documents: [runtime architecture](2026-10-19-core-runtime-proposal.md),
 [editing protocol](2026-10-20-editing-protocol-design.md),
@@ -43,12 +44,12 @@ hidden sleep, environment detection, or background scheduling on import.
 
 ## Public surface
 
-Add `@omniview/core/testing` alongside the existing root and `/sdk` entries.
+`@omniview/core/testing` exists alongside the root and `/sdk` entries.
 Applications keep using the root; plugin implementation code uses `/sdk`; plugin
 tests import `/testing` explicitly. Importing root or SDK must not pull testing
 code into the application's runtime graph.
 
-The following signatures are normative proposed declarations. `DocumentSession`,
+The following signatures describe the implemented public contract. `DocumentSession`,
 `ReadableSource`, `SerializationResult`, and `OmniviewError` refer to existing
 root types; `PluginDefinition`, `MaybePromise`, `Cleanup`, and `EditOptions` refer
 to existing SDK types. All properties shown as readonly remain readonly.
@@ -419,7 +420,7 @@ available integration points.
 
 ## Example registration
 
-This proposed usage assumes a real text plugin in a separate package. Its public
+This illustrative usage assumes a real text plugin in a separate package. Its public
 `textContent` capability exposes `read()` and `replace(value, options)`. Package
 and capability names here illustrate that external contract; no such official
 plugin is created by this phase.
@@ -466,7 +467,7 @@ const suite = createPluginTestSuite({
 });
 
 for (const check of suite.cases) {
-  test(check.name, () => check.run());
+  test(check.name, () => check.run(), 10_000);
 }
 // Display suite.omitted in the project's own reporting or enforce a policy.
 ```
@@ -474,21 +475,25 @@ for (const check of suite.cases) {
 A plain JS host needs only the generated cases; it can `await check.run()` in a
 loop and catch errors. A runner may register cases concurrently when its fixture
 factory isolates external resources. Omitting `editing` accidentally is a
-configuration error; use `false` intentionally for a viewer fixture.
+configuration error; use `false` intentionally for a viewer fixture. Configure
+finite runner/supervisor limits; a timeout cannot prove completed cleanup. See
+the [executable authoring examples](../../plugin-authoring.md#portable-plugin-conformance-tests)
+for viewer/editable suites using the guide's existing text fixtures, ordinary
+JavaScript execution, explicit omissions, cleanup order, and late-error reporting.
 
 ## Packaging, architecture, and compatibility
 
-Add `src/testing/index.ts` with explicit exports and focused private modules for
+`src/testing/index.ts` supplies explicit exports and focused private modules for
 contracts, suite discovery, per-run ownership, errors, baseline cases, editing
-cases, and controlled async cases. Avoid one large scenario runner. Testing
+cases, and controlled async cases. Testing
 consumes root/SDK-equivalent public operations and contracts; it does not change
 core's dependency direction or require private hooks. Internal relative imports
 retain `.ts` extensions for JSR. No third-party runtime dependency is introduced.
 
-Add npm export `./testing` with ESM and declarations, matching JSR
-`"./testing": "./src/testing/index.ts"`. Add a third build entry and preserve
-shared runtime/error identity across all entries. Update the packed verifier's
-hardcoded two-entry assumptions and execute a real extracted testing consumer.
+npm exports `./testing` with ESM and declarations, matching JSR
+`"./testing": "./src/testing/index.ts"`. The third build entry preserves shared
+runtime/error identity across all entries. The packed verifier exercises all
+three entries, including a real extracted testing consumer.
 Importing `/testing` may load the headless core it exercises; importing root or
 SDK must not load the kit. Root and SDK exports remain unchanged.
 
@@ -536,9 +541,10 @@ Implementation is accepted only with all of the following:
    renderer, framework adapter, CDN deployment or registry publication is part
    of this phase.
 
-The next deliverable after approval is a separate implementation plan with
-vertical behavior slices and public red/green tests. The later external proof
-remains a real text plugin in its own repository and a plain JavaScript host.
+The phase 3 implementation now supplies the public suite builder, optional
+profiles, packaging, and behavior tests. The next external proof remains a real
+text plugin in its own repository and a plain JavaScript host; no actual format
+plugin, renderer, adapter, publication, or deployment is supplied by this phase.
 
 ## Design verification record
 

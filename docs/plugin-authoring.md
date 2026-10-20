@@ -1,7 +1,8 @@
 # Plugin authoring
 
 Use `@omniview/core/sdk` for authoring helpers and contracts; applications use
-`@omniview/core`. These portable entry points share one package and version on
+`@omniview/core`; plugin tests explicitly use `@omniview/core/testing`. These
+three portable entry points share one package and version on
 npm and JSR. No private imports, framework, renderer, or runtime-specific APIs
 are needed. Format plugins belong in separate repositories. The fixture below
 only demonstrates integration; core does not ship a text parser or renderer.
@@ -431,6 +432,230 @@ Late plugin rejections remain observed and do not become unhandled rejections.
 The [editing protocol](superpowers/specs/2026-10-20-editing-protocol-design.md)
 coordinates plugin-owned models without imposing an AST or command language.
 UI, official format implementations, adapters, a common undo/redo engine,
-collaboration, autosave scheduling, and `@omniview/core/testing` remain future
-work. Do not import an unimplemented subpath. Format plugins and framework
+collaboration, and autosave scheduling remain future work. Format plugins and framework
 adapters belong in their own repositories and packages.
+
+## Portable plugin conformance tests
+
+`@omniview/core/testing` exports `createPluginTestSuite`, its fixture/callback
+contracts, and `PluginConformanceError`. It runs your actual plugin through public
+root/SDK operations. Neither the root nor `/sdk` imports testing code. The kit
+has no runner, parser, shared document model, storage, filesystem/network I/O,
+framework, Bun, or Node dependency. The same discovered cases work in ordinary
+asynchronous JavaScript and native test runners.
+
+Save the read-only fixture above as `text-fixture.ts`. This complete suite module,
+`viewer-suite.ts`, supplies real content assertions and independent sources:
+
+```ts
+import { createSource } from "@omniview/core";
+import { createPluginTestSuite } from "@omniview/core/testing";
+import { textContent, textFixture } from "./text-fixture.js";
+
+export const viewerSuite = createPluginTestSuite({
+  id: "text.viewer",
+  createFixture: () => ({
+    plugin: textFixture(),
+    createSource: () => createSource(new Blob(["before"], {
+      type: "text/plain;charset=utf-8",
+    }), { name: "notes.txt" }),
+  }),
+  verifyDocument({ session }) {
+    const api = session.getCapability(textContent);
+    if (!api || api.getText() !== "before") {
+      throw new Error("Expected initial text capability and content");
+    }
+  },
+  fingerprint({ session }) {
+    const api = session.getCapability(textContent);
+    if (!api) throw new Error("Missing text capability");
+    return api.getText();
+  },
+  editing: false,
+  unsupported: [{
+    id: "json",
+    createSource: () => createSource(new Blob(["{}"], {
+      type: "application/json",
+    }), { name: "data.json" }),
+  }],
+  onLateError(error) {
+    console.error(error.caseId, error.phase, error);
+  },
+});
+```
+
+Discovery is synchronous and does not call any fixture, source, or plugin.
+Suite/case descriptors and arrays are frozen; stable IDs combine the suite ID
+with scenario suffixes. IDs use `[a-z0-9][a-z0-9._-]*`; choose unique suite IDs
+when combining suites. Every `run()` acquires a fresh fixture, including repeats
+or concurrent calls. Return a fresh plugin definition/environment and independent
+readable sources; source reads must be deterministic and independently owned.
+Keep per-document state in the plugin's `open`. The independence checks reuse
+one fixture's definition across several sessions and cores deliberately.
+
+For editing, save the existing editable fixture as `editable-text-fixture.ts`.
+This complete `editable-suite.ts` adds real capability changes, a genuine no-op,
+and an output adapter that reads serialized bytes independently of the model:
+
+```ts
+import { createSource } from "@omniview/core";
+import { createPluginTestSuite } from "@omniview/core/testing";
+import { editableText, editableTextFixture } from "./editable-text-fixture.js";
+
+export const editableSuite = createPluginTestSuite({
+  id: "text.editable",
+  createFixture: () => ({
+    plugin: editableTextFixture(),
+    createSource: () => createSource(new Blob(["before"], {
+      type: "text/plain;charset=utf-8",
+    }), { name: "notes.txt" }),
+  }),
+  verifyDocument({ session }) {
+    if (session.getCapability(editableText)?.getText() !== "before") {
+      throw new Error("Expected initial text");
+    }
+  },
+  fingerprint({ session }) {
+    const api = session.getCapability(editableText);
+    if (!api) throw new Error("Missing editable text capability");
+    return api.getText();
+  },
+  editing: {
+    async change({ session }, options) {
+      const api = session.getCapability(editableText);
+      if (!api) throw new Error("Missing editable text capability");
+      await api.replaceText("after", options);
+    },
+    verifyChanged({ session }) {
+      if (session.getCapability(editableText)?.getText() !== "after") {
+        throw new Error("Expected changed text");
+      }
+    },
+    async verifyOutput({ output, expectedFingerprint }) {
+      const decoded = new TextDecoder().decode(await output.source.read());
+      if (decoded !== expectedFingerprint) throw new Error("Output mismatch");
+    },
+    async noChange({ session }, options) {
+      const api = session.getCapability(editableText);
+      if (!api) throw new Error("Missing editable text capability");
+      await api.replaceText(api.getText(), options);
+    },
+  },
+  onLateError(error) {
+    console.error(error.caseId, error.phase, error);
+  },
+});
+```
+
+Verification callbacks succeed by completing with `undefined`; throw an error
+for an assertion failure. Returning `false` is invalid fixture data. Fingerprints
+are deterministic semantic strings: exclude revisions, session IDs, busy state,
+timestamps, caches, and view state. Equal strings mean equivalent content for
+your scenario; a hash or universal AST is unnecessary. `change` must await the
+real capability operation with the supplied options and produce a distinct
+deterministic state. `verifyOutput` must decode `output.source` and compare it
+with `expectedFingerprint`, rather than reading the live model or modifying an
+expected value to match. These adapters determine the meaning of the checks.
+
+`editing: false` intentionally expects viewer-only support and still checks its
+unsupported editing guards. An editing profile requires real editable support,
+even though permission defaults to read-only. Missing `editing` is invalid
+configuration. `noChange` is optional for formats without a supported no-op.
+The kit compares opaque revisions for equality and tests receipt identity and
+acknowledgement order without claiming that it performed a durable storage write.
+
+To execute in an ordinary JavaScript module after compiling the suite modules:
+
+```js
+import { viewerSuite } from "./viewer-suite.js";
+import { editableSuite } from "./editable-suite.js";
+
+for (const suite of [viewerSuite, editableSuite]) {
+  for (const omission of suite.omitted) {
+    console.info("Omitted", omission.id, omission.reason);
+  }
+  for (const check of suite.cases) {
+    await check.run(); // Rejects on the first failed case in this host loop.
+    console.info("Passed", check.id);
+  }
+}
+```
+
+The supervising host must enforce a finite execution limit for this program.
+Alternatively, register each case natively with Bun in `conformance.test.ts`:
+
+```ts
+import { test } from "bun:test";
+import { viewerSuite } from "./viewer-suite.js";
+import { editableSuite } from "./editable-suite.js";
+
+for (const suite of [viewerSuite, editableSuite]) {
+  for (const omission of suite.omitted) {
+    console.info("Omitted", omission.id, omission.reason);
+  }
+  for (const check of suite.cases) {
+    test(check.name, () => check.run(), 10_000);
+  }
+}
+```
+
+Choose runner limits appropriate to actual fixture work. The kit installs no
+global hooks, scheduler, retry, sleep, guessed microtask flush, or internal
+timeout. A broken fixture or noncooperative plugin can stay pending. A runner
+timeout does not cancel arbitrary code or prove cleanup completed. Parallel
+case execution requires isolated fixture resources.
+
+Inspect `suite.omitted` in reporting or enforce your own coverage policy. An
+omission never counts as a passing case. The viewer example omits the editing
+family, controlled loading, and plugin resource verification. The editable
+example omits controlled editing/loading, unsupported-source fixtures, and
+plugin resource verification. These examples establish lifecycle integration
+of illustrative fixtures; they are not production parsers or correctness
+certification. Add real format regression tests and author resource assertions.
+
+Optional profiles extend the cases through actual controllable plugin work:
+
+- `pauseLoad(fixture)` arms a source/parser/dependency gate before real loading.
+  Return `entered`, `drained`, and `release()`: entered marks actual pending
+  work, release permits it to proceed, and drained includes late-result resource
+  cleanup after cancellation. Drained must not wait for normal disposal of a
+  live document; core disposal follows it.
+- `editing.pending(context, options)` starts a real capability edit and returns
+  a synchronous control box with those three members plus `result`, its actual
+  public operation promise. The gate precedes the first accepted change;
+  entered means initial content/revision with busy true. Drained tracks underlying
+  termination even when the public result cancelled earlier. It fulfills for
+  expected cancellation and rejects unexpected fixture failures. This adds
+  cancellation, policy revocation, disposal, and second-writer checks.
+- `verifyDisposed(fixture)` checks author-instrumented resources after controls
+  drain and all cores close, before environment teardown. It runs in every
+  case's cleanup, including partial setup and pre-aborted loading; account for
+  resources actually acquired. Its dedicated case also covers normal open/close.
+
+Use controlled dependencies or existing public capabilities; do not add a
+production test-only command or expose private contexts. A delay around a
+completed operation does not test pending plugin work. Milestones and release
+must be deterministic and cooperative. A callback returning a promise of a
+control box cannot replace the synchronous `editing.pending` result.
+
+Cleanup attempts control release exactly once, drains controlled work, disposes
+all owned cores, calls `verifyDisposed`, then calls fixture `dispose`. Later
+cleanup is attempted even after a failure. A failed release is recorded without
+blocking later cleanup on its unreleased gate. Fixture cleanup owns external
+setup, not plugin resource repair: running it first could hide a leak. If the
+fixture factory fails before returning, it must clean its own acquired resources.
+
+`PluginConformanceError` reports `caseId`, `phase` (`fixture`, `check`, or
+`cleanup`), original `cause`, and frozen `diagnostics`/`cleanupErrors` snapshots.
+The first failure remains primary while secondary failures are attached. Core
+diagnostics before settlement fail an otherwise successful case. Diagnostics
+after settlement go to `onLateError`, whose default is `console.error`; a
+throwing sink falls back to the console. A settled case cannot fail retroactively.
+The examples log late errors; connect the sink to your runner's diagnostics for
+stricter accounting and supply real drain/resource verification. Generic cleanup
+checks cannot discover arbitrary resource leaks without author instrumentation.
+
+See the [full test-kit contract](superpowers/specs/2026-10-20-portable-plugin-test-kit-design.md)
+for case suffixes, controlled milestone rules, and failure ownership. The next
+external integration proof remains a real text plugin in its own repository
+and a plain JavaScript demo host.

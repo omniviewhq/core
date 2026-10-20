@@ -23,16 +23,24 @@ public source without runtime-specific ambient types. Biome handles formatting.
 Dependencies flow from core composition to sessions, then source/plugin and
 capability contracts. Shared cancellation, cleanup, and reporting live in
 `src/lifecycle/`, below session orchestration; plugins and sources never depend
-on sessions. The root serves applications; `/sdk` serves plugin authors without
-a second runtime. See the [runtime architecture](2026-10-19-core-runtime-proposal.md)
+on sessions. The root serves applications; `/sdk` serves plugin authors; explicit
+`/testing` imports serve plugin tests without a second runtime. Root and SDK
+imports do not load testing code. See the [runtime architecture](2026-10-19-core-runtime-proposal.md)
 for the implemented module layout and future stages.
 
-Phase 2 adds optional async editing with synchronous accepted changes, revision
+Phase 2 implements optional async editing with synchronous accepted changes, revision
 and dirty state, immutable serialization captures, and exact persistence receipts.
 See the [editing protocol](2026-10-20-editing-protocol-design.md). Host applications
 own storage and acknowledge the output actually persisted. The old `mode`/`save()`
-union is not a current contract. UI, format plugins, framework adapters, undo/redo,
-and the portable public test kit remain future work.
+union is not a current contract. Phase 3 implements the
+[portable public test kit](2026-10-20-portable-plugin-test-kit-design.md): independent
+async cases use actual public sessions, author content/output assertions, fresh
+fixtures, explicit omissions, and optional controlled work/resource checks.
+Runner registration and finite time limits belong to the caller. This cannot
+certify parser correctness or prove absence of leaks without author verification.
+The next integration proof is a real text plugin in its own repository and a
+plain JavaScript host. UI, format plugins, framework adapters, and undo/redo
+remain future work.
 
 Developer customization remains a public architecture requirement. Future UI
 supports optional themes, replaceable regions, and fully custom rendering over
@@ -40,7 +48,7 @@ public state, commands, and events. Shipped selectors and names follow the
 namespaced, instance-scoped [customization contract](2026-10-19-customization-design.md).
 
 npm publishes browser-compatible ESM and declarations from `dist/`; JSR publishes
-the same root and `/sdk` API from `src/`. The package uses MIT licensing and
+the same root, `/sdk`, and `/testing` APIs from `src/`. The package uses MIT licensing and
 version `0.1.0`. CI verifies strict types, Windows/Linux behavior, full-source
 coverage, the build, packed consumers, and registry dry runs. A preload loads
 every production module so unimported code cannot escape coverage. Bun does not

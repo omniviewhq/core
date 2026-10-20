@@ -8,8 +8,9 @@ The managed runtime provides readable sources, deterministic async plugin
 selection, independent observable sessions, typed capabilities, cancellation,
 and asynchronous cleanup. Editable plugins use guarded async operations,
 revision/dirty state, immutable serialization captures, and host persistence
-acknowledgements. The public API is experimental. Rendering, controls, format
-parsers, framework adapters, and a public test kit remain future work.
+acknowledgements. A portable plugin conformance kit exercises real plugins
+through these public operations. The public API is experimental. Rendering,
+controls, format parsers, and framework adapters remain future work.
 
 ## Use without a framework
 
@@ -22,7 +23,8 @@ bun add @omniview/core
 ```
 
 Applications import `@omniview/core`; plugin authors import
-`@omniview/core/sdk`. Both entry points have zero runtime dependencies and use
+`@omniview/core/sdk`; plugin tests import `@omniview/core/testing` explicitly.
+All three entry points have zero runtime dependencies and use
 standard Web APIs, without Bun, Node, a framework, DOM, or CSS requirements.
 npm ships ESM and declarations; JSR ships TypeScript source with the same API.
 
@@ -196,6 +198,24 @@ again. Exporting a copy need not acknowledge persistence. See
 [plugin authoring](docs/plugin-authoring.md#optional-editing) for cancellation,
 capture cleanup, and an autosave building block.
 
+## Test a plugin
+
+`createPluginTestSuite` from `@omniview/core/testing` discovers named cases with
+async `run()` functions and an explicit `omitted` list. Supply a fresh real plugin
+and independent sources per run, content verification and fingerprint callbacks,
+and either `editing: false` or an editing profile with output verification.
+Register cases with your runner or await them in an ordinary JavaScript program.
+The kit installs no runner hooks or timeouts; configure finite limits in your
+runner or supervising host.
+
+Checks cover lifecycle, document isolation, optional editing, immutable output,
+and persistence receipts. Optional controlled load/edit and resource verification
+profiles make additional coverage explicit. Author assertions and format tests
+remain necessary: these checks do not certify parsing correctness or prove
+absence of resource leaks. Root and SDK imports do not load testing code. See the
+[executable viewer and editable examples](docs/plugin-authoring.md#portable-plugin-conformance-tests)
+for adapters, cleanup order, omissions, late errors, and Bun registration.
+
 ## Customization architecture
 
 Future UI and official plugins must support optional themes, replaceable regions,
@@ -227,8 +247,8 @@ no Bun or Node ambient types.
 
 ## Publishing
 
-npm receives `dist/`; JSR receives `src/`. Both expose the root and `/sdk` as
-`@omniview/core` version `0.1.0`. There is no `/testing` export. See
+npm receives `dist/`; JSR receives `src/`. Both expose the root, `/sdk`, and
+`/testing` as `@omniview/core` version `0.1.0`. See
 [release setup](docs/releasing.md) before the separate manual Release workflow.
 Repository preparation does not authorize publication or git push.
 
@@ -241,7 +261,7 @@ Repository preparation does not authorize publication or git push.
 - [Phase 1 implementation plan](docs/superpowers/plans/2026-10-19-core-runtime-phase-1.md)
 - [Approved editing protocol design](docs/superpowers/specs/2026-10-20-editing-protocol-design.md)
 - [Phase 2 implementation plan](docs/superpowers/plans/2026-10-20-editing-protocol-phase-2.md)
-- [Proposed portable plugin test kit](docs/superpowers/specs/2026-10-20-portable-plugin-test-kit-design.md)
+- [Portable plugin test kit contract](docs/superpowers/specs/2026-10-20-portable-plugin-test-kit-design.md)
 - [Installed AI skills](docs/ai-skills.md)
 
 MIT licensed.

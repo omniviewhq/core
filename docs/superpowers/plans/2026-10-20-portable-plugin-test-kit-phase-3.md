@@ -55,7 +55,9 @@ ownership and review the result before integration.
 | `src/testing/assertions.ts` | Private assertions, observed outcomes and phase markers |
 | `src/testing/context.ts` | Narrow private scenario orchestration contracts |
 | `src/testing/cases/baseline.ts` | Detection/lifetime/source/viewer/unsupported checks |
-| `src/testing/cases/editing.ts` | Real edits, output and exact receipts |
+| `src/testing/cases/editing.ts` | Real changes, permission and document isolation |
+| `src/testing/cases/serialization.ts` | Immutable captures and output ownership |
+| `src/testing/cases/persistence.ts` | Exact receipts and acknowledgement ordering |
 | `src/testing/cases/pending.ts` | Optional controlled load/edit races |
 | `tests/testing-*.test.ts` | Public behavior, mutant and failure regressions |
 | `tests/testing.types.ts` | Strict fixture inference and negative contracts |
@@ -65,10 +67,10 @@ ownership and review the result before integration.
 
 ## Task 1: Contracts and first discovery slice
 
-- [ ] Copy the approved declarations into `src/testing/types.ts`; implement
+- [x] Copy the approved declarations into `src/testing/types.ts`; implement
   `PluginConformanceError` in `errors.ts` using native ErrorOptions and frozen
   copied arrays. Public members require explicit isolated-declaration types.
-- [ ] Add this first test in `tests/testing-discovery.test.ts` before the entry:
+- [x] Add this first test in `tests/testing-discovery.test.ts` before the entry:
 
 ```ts
 import { expect, test } from "bun:test";
@@ -95,107 +97,107 @@ test("discovers frozen cases without creating fixtures", () => {
 });
 ```
 
-- [ ] Run `bun test tests/testing-discovery.test.ts`, expect missing entry.
+- [x] Run `bun test tests/testing-discovery.test.ts`, expect missing entry.
   Introduce real case closures together with the first working open scenario;
   do not publish no-op run placeholders. Snapshot callbacks/receivers once.
-- [ ] Extend discovery with stable IDs, no import/factory side effects, malformed
+- [x] Extend discovery with stable IDs, no import/factory side effects, malformed
   options/getters/duplicate unsupported IDs, nested mutation and all omissions.
   Declaration-only tests cover generic subtype inference and readonly results.
 
 ## Task 2: Per-run ownership and baseline cases
 
-- [ ] Add `tests/support/conformance-fixture.ts` using a real model and root/SDK
+- [x] Add `tests/support/conformance-fixture.ts` using a real model and root/SDK
   APIs. Its known-good baseline config supplies a fresh plugin/environment,
   deterministic sources, initial assertions and semantic fingerprints.
-- [ ] Add a run regression proving two concurrent invocations acquire and clean
+- [x] Add a run regression proving two concurrent invocations acquire and clean
   distinct fixtures. Use `Promise.all([check.run(), check.run()])`, with counters
   in the fixture factory/dispose, and assert two acquisitions/two cleanups.
-- [ ] Implement tracked core/source/context helpers and phase-aware boundaries.
+- [x] Implement tracked core/source/context helpers and phase-aware boundaries.
   Snapshot fixture cleanup before inspecting other fields so failed validation
   still releases acquired resources. Preserve thrown null/undefined explicitly.
-- [ ] Implement every baseline catalog row plus viewer `editing/unsupported`.
+- [x] Implement every baseline catalog row plus viewer `editing/unsupported`.
   Use only public core methods; `verifyDocument` must validate capabilities.
   Source ownership reads/copies compare real bytes, not implementation counters.
-- [ ] Test each catalog case by selecting its stable ID and calling run. Add
+- [x] Test each catalog case by selecting its stable ID and calling run. Add
   wrong detection/content and shared-state/leak mutant fixtures that fail at the
   intended check. Run `bun test tests/testing-baseline.test.ts` and typecheck.
 
 ## Task 3: Failure, diagnostic and cleanup ownership
 
-- [ ] Introduce public failing tests for factory/source errors, malformed fixture,
+- [x] Introduce public failing tests for factory/source errors, malformed fixture,
   non-string fingerprints/non-undefined verification values and content throws.
-- [ ] Implement the phase table from the design. A primary survives later
+- [x] Implement the phase table from the design. A primary survives later
   cleanup; no primary plus cleanup failures yields cleanup phase and AggregateError.
   Keep original identities, including falsey thrown values, and freeze arrays.
-- [ ] Add failures in multiple owned cores, resource verification and fixture
+- [x] Add failures in multiple owned cores, resource verification and fixture
   cleanup. Assert every later cleanup runs and verifyDisposed precedes environment
   disposal, including partial initialization. Repeated disposal shares promises.
-- [ ] Exercise core onError during/after cleanup, default late sink and throwing
+- [x] Exercise core onError during/after cleanup, default late sink and throwing
   custom late sink. Known diagnostics fail an otherwise successful case; late
   diagnostics use the originating case ID without unhandled rejection.
-- [ ] Run focused tests and full `bun run check` at a complete ownership milestone.
+- [x] Run focused tests and full `bun run check` at a complete ownership milestone.
   Commit only an integrated, verified boundary; no lowered coverage thresholds.
 
 ## Task 4: Editing, serialization and receipt scenarios
 
-- [ ] Add editable fixture adapters through actual typed capabilities, not a
+- [x] Add editable fixture adapters through actual typed capabilities, not a
   mock context or direct model mutation. A real change produces distinct content;
   output verification decodes bytes against the captured semantic fingerprint.
-- [ ] Add one selected-case test, observe its absence/failure, implement that
+- [x] Add one selected-case test, observe its absence/failure, implement that
   behavior, then continue through every editing/serialization/persistence row.
   Optional no-op must preserve revision, permitting transient busy transitions.
-- [ ] Cover core/session policy precedence and re-enable, independent documents
+- [x] Cover core/session policy precedence and re-enable, independent documents
   and cores, read-only and pre-aborted export, call-time and concurrent captures,
   independent reads, post-disposal output and retained closed editing calls.
-- [ ] Receipt cases reject copy/fabricated/foreign identities without state
+- [x] Receipt cases reject copy/fabricated/foreign identities without state
   changes. Acknowledge changed B then initial A then B; compare equality only,
   never parse opaque revisions or assume one revision per capability call.
-- [ ] Add real unguarded mutation and delayed live-model encoding mutants.
+- [x] Add real unguarded mutation and delayed live-model encoding mutants.
   Run `bun test tests/testing-editing.test.ts` and strict types. Independently
   review spec compliance, then quality of the complete scenario boundary.
 
 ## Task 5: Controlled work and pending profiles
 
-- [ ] Add a known-good controllable dependency to the fixture. Load entered and
+- [x] Add a known-good controllable dependency to the fixture. Load entered and
   drained milestones must refer to actual plugin work; pending edit result must
   be the actual capability promise with a gate before its first accepted change.
-- [ ] First test pending-load cancellation before release; assert no ready
+- [x] First test pending-load cancellation before release; assert no ready
   resurrection and resource balance after drain. Implement acquired controls,
   observed entered/drained/result outcomes, first-completion race and release once.
-- [ ] Add pending-load disposal and four pending-edit cases. Register handlers
+- [x] Add pending-load disposal and four pending-edit cases. Register handlers
   before triggering cancellation. Verify busy/initial state while held, original
   cancellation reason, READ_ONLY/SESSION_CLOSED causes, and no late accepted edit.
-- [ ] Test premature completion, rejecting/invalid milestones, wrong async
+- [x] Test premature completion, rejecting/invalid milestones, wrong async
   control boxes, release failure and drain failure. If release fails, do not hang
   later cleanup on its unreleased gate; continue observing late outcomes.
-- [ ] Run public pending/failure tests, strict types and full check. Commit the
+- [x] Run public pending/failure tests, strict types and full check. Commit the
   verified runtime with coherent discovery/scenario/control ownership.
 
 ## Task 6: Third entry and actual package consumers
 
-- [ ] Add npm `./testing` => `dist/testing/index` and JSR `./testing` =>
+- [x] Add npm `./testing` => `dist/testing/index` and JSR `./testing` =>
   `./src/testing/index.ts`; add build entry without dependencies/version changes.
-- [ ] Extend the verifier's entry table and replace its two-entry assumption.
+- [x] Extend the verifier's entry table and replace its two-entry assumption.
   Check root and SDK import graphs exclude testing; root/SDK/testing share runtime
   error identity. Keep source preload and portable library ambient restrictions.
-- [ ] Append an independent consumer suite using a real editable plugin in the
+- [x] Append an independent consumer suite using a real editable plugin in the
   packed-consumer file. Execute all its cases with ordinary async JavaScript and
   assert omissions. No source/fixture/private imports into the archive consumer.
-- [ ] Run `bun run check`, full `tsc`, `bun run test:package`, npm pack dry run,
+- [x] Run `bun run check`, full `tsc`, `bun run test:package`, npm pack dry run,
   and JSR dry run. Both DOM and Node-only consumer declarations compile and Node
   executes the packed kit independently. Commit portable integration evidence.
 
 ## Task 7: Current docs, review and acceptance
 
-- [ ] Update README, AGENTS, authoring and architecture only once testing exists.
+- [x] Update README, AGENTS, authoring and architecture only once testing exists.
   Provide executable viewer/editable examples, explicit omission reporting,
   fixture/resource/control ownership and runner timeout limitations. Mark the
   design implemented without rewriting its historical verification record.
-- [ ] Compile/execute guide examples against actual exports. Distinguish fixture
+- [x] Compile/execute guide examples against actual exports. Distinguish fixture
   semantic checks from exhaustive parser correctness and resource leak proofs.
-- [ ] Request independent spec and quality review with precise files/invariants.
+- [x] Request independent spec and quality review with precise files/invariants.
   Turn concrete findings into public failing regressions, fix and re-review.
-- [ ] Run frozen install, full check, full development TypeScript, packed consumers,
+- [x] Run frozen install, full check, full development TypeScript, packed consumers,
   npm and JSR dry runs, and `git diff --check`; inspect all exits. Re-prove unused
   source fails coverage, remove probe and rerun the clean suite.
 - [ ] Record task evidence here; commit detailed semantic changes, fast-forward
@@ -208,3 +210,39 @@ Contracts/discovery: Task 1. Ownership/errors: Tasks 2-3. Catalog: Tasks 2, 4-5.
 Controlled milestones/late work: Tasks 3, 5. Portability, exports and actual archive:
 Task 6. Documentation, mutation/failure sensitivity, coverage and review: all
 tasks and final Task 7 acceptance. All production additions remain covered.
+
+## Implementation evidence
+
+Tasks 1-5 supply the complete portable catalog through public root/SDK/testing
+operations. Discovery snapshots configuration without invoking fixtures. Every
+run owns a fresh environment, controls, cores and diagnostics. Real viewer and
+editable fixtures cover normal cases and deliberately broken detection, content,
+isolation, editing, captures, resource cleanup and cancellation. Public failure
+regressions preserve falsey causes and exercise malformed controls and sources.
+
+Independent spec review found disposal/source phase errors, lost drain failures,
+an incomplete permission re-enable check and missing raw source metadata checks.
+Each concrete finding received a public failing regression and a verified fix.
+The final review also extended drain ownership during environment teardown and
+for malformed release callbacks; both regressions failed before their fixes.
+Final independent spec compliance and separate quality review are approved;
+no actionable findings remain. Throwing source accessor regressions also
+failed before the boundary fix and pass afterward across five admission paths.
+
+Task 6 adds the third npm/JSR entry without new dependencies or version changes.
+The actual archive passes strict DOM and Node-only declarations and Node
+execution with a real editable conformance suite. Archive import-graph checks
+prove root/SDK do not load testing and preserve shared runtime error identity.
+
+Task 7 documentation provides nine extracted, strictly compiled authoring
+examples. Their ordinary JavaScript runner passes all 29 discovered cases under
+Node, and their native Bun registration passes 29/29. Six changed documents have
+balanced code fences and 36 resolved local links.
+
+Acceptance on 2026-10-20: frozen install, full `bun run check` (332 tests,
+714 assertions, 100% source lines/functions), full development TypeScript,
+actual packed consumers, npm pack dry run, JSR publish dry run and whitespace
+checks pass. A temporary uncalled source module made coverage fail with exit 1
+and 0% lines/functions; the probe was removed and the clean full check passed.
+No coverage threshold, preload or exclusion was weakened. No registry publish
+was performed. Integration and remote identity are finalized after review.

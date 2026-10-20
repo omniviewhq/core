@@ -1,7 +1,7 @@
 # Core runtime and plugin SDK architecture
 
-Status: the managed runtime, authoring SDK, and optional editing protocol are
-implemented. UI, formats, adapters, and the public test kit remain roadmap items.
+Status: the managed runtime, authoring SDK, optional editing protocol, and portable
+plugin test kit are implemented. UI, formats, and adapters remain roadmap items.
 The [phase 1 plan](../plans/2026-10-19-core-runtime-phase-1.md) records the
 contract and acceptance scenarios. See [plugin authoring](../../plugin-authoring.md)
 and [migration](../../migration-managed-sessions.md) for current usage.
@@ -12,7 +12,7 @@ and [migration](../../migration-managed-sessions.md) for current usage.
   plugin and framework adapter has a separate repository and package.
 - Portable public code uses standard Web APIs without Bun, Node, DOM, framework,
   or CSS requirements. Development remains Bun-first with no runtime dependencies.
-- npm ESM/declarations and JSR TypeScript sources expose the same root and SDK API.
+- npm ESM/declarations and JSR TypeScript sources expose the same root, SDK, and testing APIs.
 - Core stays headless. Optional editing coordinates plugin-owned models alongside
   the existing customization and style-isolation contract.
 - Plugin authors use public tools and contracts instead of internal paths or
@@ -30,11 +30,12 @@ core would broaden dependencies and weaken isolation.
 | --- | --- | --- |
 | `@omniview/core` | Hosts and renderer authors | Core/session handles, editing snapshots, serialized output receipts, sources, errors |
 | `@omniview/core/sdk` | Plugin authors | Definitions, edit/capture/encoder contexts, typed capability helpers, errors |
+| `@omniview/core/testing` | Plugin tests | Named async conformance cases, fixture/adapter contracts, explicit omissions, conformance errors |
 
-Both registries expose both entry points at the same package version. npm builds
-both together with shared ESM chunks and declarations; JSR exports the source
-graph. Root imports do not load frameworks, UI, styles, or test runners.
-`@omniview/core/testing` is intentionally not exported before it is implemented.
+Both registries expose all three entry points at the same package version. npm
+builds them together with shared ESM chunks and declarations; JSR exports the
+source graph. Root and SDK imports do not load testing, frameworks, UI, styles,
+or test runners. Testing may load the headless runtime it exercises.
 
 ## Session model
 
@@ -75,6 +76,7 @@ layout belong to hosts/renderers.
 | Serialization | Capture ownership, encoding lifetime, output copies, exact receipts | Storage, write scheduling, destination selection |
 | Capabilities | Typed optional protocols and discovery | One mandatory document model |
 | SDK | Supported authoring helpers and contracts | A second runtime, parsers, UI |
+| Testing | Public runtime scenarios, fixture ownership, explicit omissions, diagnostics | Runner scheduling/timeouts, format truth, universal leak detection |
 
 Dependencies flow from core composition to sessions, then sources, plugins,
 capabilities, and lifecycle primitives. Shared cancellation, resources, and
@@ -121,10 +123,19 @@ src/
     registry.ts                document capability validation
   sdk/
     index.ts                   plugin-author public exports
+  testing/
+    index.ts                   explicit plugin-testing public exports
+    types.ts                   fixture, control, callback and case contracts
+    create-suite.ts            immutable discovery without fixture execution
+    config.ts                  configuration snapshots and validation
+    run.ts                     per-run ownership and ordered cleanup
+    cases/                     baseline, editing, serialization, receipt, pending cases
 ```
 
-Create future modules only when their behavior exists. There are no testing
-placeholders and no generic utilities/services buckets.
+Testing composes public root/SDK operations and contracts; it does not inspect
+private controllers or introduce reverse imports from lower runtime layers.
+Create future modules only when their behavior exists. There are no generic
+utilities/services buckets.
 
 ## Sources and plugin selection
 
@@ -236,21 +247,29 @@ Hosts own storage, autosave scheduling, write ordering, and unsaved-change UI.
 Core never opens confirmation dialogs or chooses storage. UI, a common editable
 AST, undo/redo, automatic rollback, and collaboration remain outside this phase.
 
-## Portable test kit direction
+## Portable plugin test kit
 
-The [phase 3 design](2026-10-20-portable-plugin-test-kit-design.md) proposes named
-portable cases, fresh author fixtures, explicit omissions, and optional async
-controls. This API is specified for review and is not implemented yet.
+The implemented [phase 3 contract](2026-10-20-portable-plugin-test-kit-design.md)
+provides `createPluginTestSuite` through `/testing`. Discovery is synchronous;
+every named async case acquires a fresh fixture and uses real public sessions.
+Root and SDK imports do not pull in testing. All three APIs use portable standard
+Web APIs, without Bun, Node, DOM, or runner dependencies.
 
-Future `@omniview/core/testing` should exercise public plugin behavior with
-supplied source fixtures and a session factory. It must not import bun:test,
-Node, DOM, or a particular test runner. The minimal SDK is already implemented
-independently of this test kit.
+Cases check detection, opening, capability assertions, lifetime, cancellation,
+independence, optional editing, immutable output, and exact persistence receipts.
+Authors supply deterministic semantic fingerprints and independent serialized
+output assertions. `editing: false` intentionally selects a viewer fixture;
+optional controlled load/edit profiles and plugin resource assertions have
+explicit omission descriptors when absent. No omitted check counts as passed.
 
-Shared checks should cover registration, detection, opening, capabilities,
-cancellation, cleanup, and independent concurrent sessions. Editing checks are
-opt-in for plugins that implement the protocol. Format content correctness remains the plugin
-author's responsibility; generic checks cannot validate every parser/renderer.
+Cleanup releases/drains controlled work, closes cores, verifies plugin resources,
+then disposes the fixture environment. Errors preserve primary causes and attach
+cleanup failures/diagnostics; diagnostics after settlement use `onLateError`.
+The caller registers/executes cases, presents omissions, and enforces finite time
+limits. A timeout cannot establish completed cleanup. Content correctness and
+resource assertions remain the author's responsibility; the generic kit does
+not certify parsers/renderers or prove absence of arbitrary leaks. See
+[plugin authoring](../../plugin-authoring.md#portable-plugin-conformance-tests).
 
 ## Development sequence and review scenarios
 
@@ -258,9 +277,10 @@ author's responsibility; generic checks cannot validate every parser/renderer.
    including the minimal SDK, cancellation, cleanup, and observable state.
 2. Editing protocol: implemented optional permission, guarded async operations,
    revisions, dirty tracking, captures, and exact persistence receipts.
-3. Portable test kit: real public conformance helpers through a future subpath.
-4. External integration proof: a real format plugin in its own package, a
-   viewer-only fixture, and a plain JavaScript host before protocol stabilization.
+3. Portable test kit: implemented public `/testing` cases, author adapters,
+   explicit omissions, optional controls, and per-run cleanup ownership.
+4. External integration proof (next): a real text plugin in its own package,
+   viewer-only integration, and a plain JavaScript host before stabilization.
 5. Release validation: actual packed npm consumers, matching JSR source exports,
    portability, isolated sessions, and full-source line/function coverage.
 
@@ -278,5 +298,5 @@ release versioning against actual publication history before release.
 
 No default UI, CSS system, format parser, framework adapter, marketplace,
 arbitrary dependency graph, collaboration engine, universal document AST,
-format-independent undo engine, or public test kit is implemented in this phase.
+or format-independent undo engine is implemented in this phase.
 Registry publication and git push remain separate authorized actions.
